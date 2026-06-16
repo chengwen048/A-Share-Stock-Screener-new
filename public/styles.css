@@ -269,6 +269,13 @@ button.secondary {
   color: var(--text);
 }
 
+button.detail-button.secondary {
+  min-height: 30px;
+  padding: 0 10px;
+  border-color: rgba(73, 214, 255, 0.36);
+  font-size: 12px;
+}
+
 button:hover {
   filter: brightness(1.08);
 }
@@ -484,18 +491,43 @@ select {
   appearance: none;
 }
 
-.chart-panel {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 13px;
-  background: linear-gradient(180deg, rgba(12, 18, 32, 0.88), rgba(7, 11, 20, 0.86));
-}
-
 .compact-heading {
   margin-bottom: 0;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(10px);
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.kline-modal {
+  width: min(1180px, 100%);
+  max-height: min(88vh, 780px);
+  overflow: auto;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(12, 18, 32, 0.98), rgba(7, 11, 20, 0.98));
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-actions span {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 #klineCanvas {

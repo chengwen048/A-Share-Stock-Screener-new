@@ -36,10 +36,17 @@ const klineTitle = document.querySelector('#klineTitle');
 const klineMeta = document.querySelector('#klineMeta');
 const klineCanvas = document.querySelector('#klineCanvas');
 const klineStats = document.querySelector('#klineStats');
+const closeKlineButton = document.querySelector('#closeKlineButton');
+const eastMoneyAccountStatus = document.querySelector('#eastMoneyAccountStatus');
+const eastMoneyTradingStatus = document.querySelector('#eastMoneyTradingStatus');
+const watchlistBody = document.querySelector('#watchlistBody');
+const watchlistNote = document.querySelector('#watchlistNote');
 
 let conditionDefinitions = [];
 let browserDb = null;
 let basicDataRows = [];
+let watchlistRows = [];
+let latestScreenRows = { results: [], nearMisses: [] };
 
 function formatChinaDateTime(value = new Date()) {
   return new Intl.DateTimeFormat('zh-CN', {
@@ -200,6 +207,22 @@ function detailButton(stock) {
 
 function klineButton(stock) {
   return `<button type="button" class="detail-button" data-stock-kline="${stockCode(stock)}">看K线</button>`;
+}
+
+function watchButton(stock, source) {
+  return `<button type="button" class="detail-button secondary" data-watch-add="${stockCode(stock)}" data-watch-source="${source}">加入观察</button>`;
+}
+
+function loadWatchlist() {
+  try {
+    watchlistRows = JSON.parse(localStorage.getItem('a-share-watchlist') || '[]');
+  } catch (error) {
+    watchlistRows = [];
+  }
+}
+
+function saveWatchlist() {
+  localStorage.setItem('a-share-watchlist', JSON.stringify(watchlistRows));
 }
 
 function escapeHtml(value) {
@@ -524,7 +547,7 @@ function failedLabels(row) {
 
 function renderResults(rows) {
   if (!rows.length) {
-    resultsBody.innerHTML = emptyRow(9, '当前条件下没有命中的股票。');
+    resultsBody.innerHTML = emptyRow(10, '当前条件下没有命中的股票。');
     return;
   }
 
@@ -579,6 +602,7 @@ function renderResults(rows) {
           </div>
         </td>
         <td>${detailButton(stock)}</td>
+        <td>${watchButton(stock, '命中结果')}</td>
       </tr>`;
     })
     .join('');
@@ -586,7 +610,7 @@ function renderResults(rows) {
 
 function renderNearMisses(rows) {
   if (!rows.length) {
-    nearMissBody.innerHTML = emptyRow(6, '暂无接近命中数据。');
+    nearMissBody.innerHTML = emptyRow(7, '暂无接近命中数据。');
     return;
   }
 
@@ -606,9 +630,81 @@ function renderNearMisses(rows) {
           </div>
         </td>
         <td>${detailButton(stock)}</td>
+        <td>${watchButton(stock, '接近命中')}</td>
       </tr>`;
     })
     .join('');
+}
+
+function renderWatchlist() {
+  watchlistNote.textContent = `当前 ${watchlistRows.length} 只，保存在当前浏览器`;
+  if (!watchlistRows.length) {
+    watchlistBody.innerHTML = emptyRow(6, '暂无待观察股票。');
+    return;
+  }
+
+  watchlistBody.innerHTML = watchlistRows
+    .map((row) => `<tr>
+      <td><span class="code">${escapeHtml(row.tsCode)}</span></td>
+      <td>${escapeHtml(row.name ?? '-')}</td>
+      <td>${escapeHtml(row.addedAtChina ?? '-')}</td>
+      <td>${escapeHtml(row.source ?? '-')}</td>
+      <td>
+        <div class="stack">
+          <span>收盘 ${formatNumber(row.metrics?.close)}</span>
+          <span>20日均量比 ${formatNumber(row.metrics?.todayVolumeMultiple20)}</span>
+          <span>主力 ${formatMoney(row.metrics?.todayMainNetInflow)}</span>
+        </div>
+      </td>
+      <td>
+        <button type="button" class="detail-button secondary" data-watch-remove="${escapeHtml(row.tsCode)}">移除</button>
+      </td>
+    </tr>`)
+    .join('');
+}
+
+function addToWatchlist(tsCode, source) {
+  const rows = [
+    ...[...resultsBody.querySelectorAll('[data-watch-add]')].map((button) => button.dataset.watchAdd),
+    ...[...nearMissBody.querySelectorAll('[data-watch-add]')].map((button) => button.dataset.watchAdd)
+  ];
+  if (!rows.includes(tsCode)) return;
+  const allRows = [...latestScreenRows.results, ...latestScreenRows.nearMisses];
+  const found = allRows.find((row) => stockCode(row.stock) === tsCode);
+  if (!found) return;
+  watchlistRows = watchlistRows.filter((row) => row.tsCode !== tsCode);
+  watchlistRows.unshift({
+    tsCode,
+    name: found.stock?.name ?? '',
+    source,
+    addedAt: new Date().toISOString(),
+    addedAtChina: formatChinaDateTime(new Date()),
+    metrics: {
+      close: found.metrics?.close ?? null,
+      todayVolumeMultiple20: found.metrics?.todayVolumeMultiple20 ?? null,
+      todayMainNetInflow: found.metrics?.todayMainNetInflow ?? null
+    }
+  });
+  saveWatchlist();
+  renderWatchlist();
+}
+
+async function loadEastMoneyStatus() {
+  try {
+    const response = await fetch('/api/eastmoney/status');
+    const payload = await response.json();
+    eastMoneyAccountStatus.textContent = payload.accountConfigured && payload.passwordConfigured ? '后端已配置' : '未配置环境变量';
+    eastMoneyTradingStatus.textContent = payload.message ?? '未接入';
+  } catch (error) {
+    eastMoneyAccountStatus.textContent = '状态读取失败';
+    eastMoneyTradingStatus.textContent = error.message;
+  }
+}
+
+function removeFromWatchlist(tsCode) {
+  watchlistRows = watchlistRows.filter((row) => row.tsCode !== tsCode);
+  saveWatchlist();
+  renderWatchlist();
 }
 
 async function showStockDetail(tsCode) {
@@ -809,11 +905,14 @@ async function showKline(tsCode) {
       { label: '成交量', value: formatNumber(latest.volume, 0) },
       { label: '成交额', value: formatMoney(latest.amount) }
     ]);
-    klinePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
     klineTitle.textContent = `${tsCode} K 线加载失败`;
     klineMeta.textContent = error.message;
   }
+}
+
+function closeKline() {
+  klinePanel.hidden = true;
 }
 
 function renderPayload(payload) {
@@ -862,6 +961,10 @@ function renderPayload(payload) {
   renderResults(payload.results ?? []);
   renderNearMisses(payload.nearMisses ?? []);
   renderIncomplete(payload.incompleteRows ?? []);
+  latestScreenRows = {
+    results: payload.results ?? [],
+    nearMisses: payload.nearMisses ?? []
+  };
 }
 
 async function applyScreen() {
@@ -910,6 +1013,9 @@ async function refreshData() {
 async function init() {
   renderChinaClock();
   setInterval(renderChinaClock, 1000);
+  loadWatchlist();
+  renderWatchlist();
+  loadEastMoneyStatus();
   const response = await fetch('/api/conditions');
   const payload = await response.json();
   conditionDefinitions = payload.conditions ?? [];
@@ -948,11 +1054,22 @@ conditionList.addEventListener('change', () => {
 basicSearchInput.addEventListener('input', renderBasicRows);
 basicLimitSelect.addEventListener('change', renderBasicRows);
 loadBasicDataButton.addEventListener('click', loadBasicData);
+closeKlineButton.addEventListener('click', closeKline);
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-stock-detail]');
   if (button) showStockDetail(button.dataset.stockDetail);
   const kline = event.target.closest('[data-stock-kline]');
   if (kline) showKline(kline.dataset.stockKline);
+  const addWatch = event.target.closest('[data-watch-add]');
+  if (addWatch) addToWatchlist(addWatch.dataset.watchAdd, addWatch.dataset.watchSource);
+  const removeWatch = event.target.closest('[data-watch-remove]');
+  if (removeWatch) removeFromWatchlist(removeWatch.dataset.watchRemove);
+  if (event.target === klinePanel) closeKline();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !klinePanel.hidden) {
+    closeKline();
+  }
 });
 
 document.querySelectorAll('.toc-link').forEach((link) => {

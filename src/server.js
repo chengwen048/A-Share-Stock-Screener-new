@@ -18,6 +18,8 @@ const CHINA_TIME_ZONE = 'Asia/Shanghai';
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const DEFAULT_TUSHARE_HTTP_URL = process.env.TUSHARE_HTTP_URL || 'http://8.148.76.181:8686/';
 const TUSHARE_TOKEN = process.env.TUSHARE_TOKEN || '';
+const EASTMONEY_ACCOUNT_ID = process.env.EASTMONEY_ACCOUNT_ID || '';
+const EASTMONEY_PASSWORD = process.env.EASTMONEY_PASSWORD || '';
 const DATA_DIR = path.join(__dirname, '..', 'data', 'tushare');
 const CACHE_DIRS = {
   daily: path.join(DATA_DIR, 'daily'),
@@ -1513,6 +1515,21 @@ app.get('/api/health', (req, res) => {
     snapshotLoaded: Boolean(datasetCache?.snapshotLoaded),
     dataStatus: buildDataStatus(),
     refreshJob
+  });
+});
+
+app.get('/api/eastmoney/status', (req, res) => {
+  const accountConfigured = Boolean(EASTMONEY_ACCOUNT_ID);
+  const passwordConfigured = Boolean(EASTMONEY_PASSWORD);
+  res.json({
+    ok: true,
+    accountConfigured,
+    passwordConfigured,
+    readonly: true,
+    connected: false,
+    message: accountConfigured && passwordConfigured
+      ? '已检测到后端环境变量，但尚未接入东方财富实盘只读接口'
+      : '请在后端环境变量配置 EASTMONEY_ACCOUNT_ID 和 EASTMONEY_PASSWORD；不要写入前端或提交到 GitHub'
   });
 });
 
