@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: a-share-stock-screener
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: TUSHARE_TOKEN
+        sync: false
+      - key: TUSHARE_HTTP_URL
+        value: http://8.148.76.181:8686/
+      - key: NODE_ENV
+        value: production

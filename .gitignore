@@ -1,0 +1,14 @@
+node_modules/
+.env
+.DS_Store
+npm-debug.log*
+data/tushare/daily/
+data/tushare/daily_basic/
+data/tushare/moneyflow/
+data/tushare/meta/
+!data/
+!data/tushare/
+!data/tushare/snapshot/
+!data/tushare/snapshot/dataset.json
+!data-cache/
+!data-cache/tushare-cache.tar.gz

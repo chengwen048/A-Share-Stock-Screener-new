@@ -1,0 +1,17 @@
+{
+  "name": "a-share-stock-screener",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pack:cache": "node scripts/pack-cache.js",
+    "restore:cache": "node scripts/restore-cache.js",
+    "dev": "node src/server.js",
+    "start": "npm run restore:cache && node src/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "p-limit": "^6.2.0"
+  }
+}

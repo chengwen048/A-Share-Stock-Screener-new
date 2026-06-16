@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A 股股票筛选平台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar">
+        <div>
+          <h1>A 股股票筛选平台</h1>
+          <p>默认从 Tushare A 股全市场筛选；HTTP 地址为 <code>http://8.148.76.181:8686/</code>，历史缓存持续保留，不删除旧数据，只做增量补充。</p>
+        </div>
+        <div class="actions">
+          <button id="applyButton" type="button" class="secondary">应用筛选</button>
+          <button id="refreshButton" type="button">增量更新</button>
+        </div>
+      </section>
+
+      <section class="status-grid" aria-live="polite">
+        <div class="metric">
+          <span>股票数据更新至（交易日）</span>
+          <strong id="stockDataDate">等待数据</strong>
+        </div>
+        <div class="metric">
+          <span>系统更新时间（中国时间）</span>
+          <strong id="updatedAt">等待更新</strong>
+        </div>
+        <div class="metric">
+          <span>下次增量检查</span>
+          <strong id="expiresAt">-</strong>
+        </div>
+        <div class="metric">
+          <span>参与筛选 / 缺历史 / 全 A 股</span>
+          <strong id="scannedCount">-</strong>
+        </div>
+        <div class="metric">
+          <span>命中股票</span>
+          <strong id="matchedCount">-</strong>
+        </div>
+      </section>
+
+      <section class="status-grid compact">
+        <div class="metric">
+          <span>筛选条件</span>
+          <strong id="activeConditionCount">-</strong>
+        </div>
+        <div class="metric">
+          <span>Tushare Token</span>
+          <strong id="apiKeyStatus">检测中</strong>
+        </div>
+        <div class="metric wide">
+          <span>数据源</span>
+          <strong id="sourceText">-</strong>
+        </div>
+      </section>
+
+      <section class="insight-strip">
+        <div>
+          <span>服务端快照状态</span>
+          <strong id="serverSnapshotStatus">等待数据</strong>
+        </div>
+        <div>
+          <span>浏览器快照状态</span>
+          <strong id="browserSnapshotStatus">等待写入</strong>
+        </div>
+        <div>
+          <span>浏览器保存版本</span>
+          <strong id="browserSnapshotCount">0</strong>
+        </div>
+      </section>
+
+      <section class="insight-strip">
+        <div>
+          <span>Tushare HTTP</span>
+          <strong id="tushareHttpUrl">http://8.148.76.181:8686/</strong>
+        </div>
+        <div>
+          <span>代理状态</span>
+          <strong>已关闭环境代理</strong>
+        </div>
+        <div>
+          <span>缓存策略</span>
+          <strong>持续保留 + 按小时更新</strong>
+        </div>
+      </section>
+
+      <section class="insight-strip" aria-live="polite">
+        <div>
+          <span>全市场状态</span>
+          <strong id="universeStatus">等待数据</strong>
+        </div>
+        <div>
+          <span>本地历史缓存</span>
+          <strong id="localCacheStatus">等待数据</strong>
+        </div>
+        <div>
+          <span>数据状态</span>
+          <strong id="dataStatusText">等待数据</strong>
+        </div>
+        <div>
+          <span>更新方式</span>
+          <strong>手动刷新 + 增量更新</strong>
+        </div>
+      </section>
+
+      <section class="insight-strip" aria-live="polite">
+        <div>
+          <span>交易日规则</span>
+          <strong>按 Tushare 交易日历自动跳过周末和节假日</strong>
+        </div>
+        <div>
+          <span>成交量口径</span>
+          <strong>页面“20日均量比”= 当日成交量 / 前20个交易日均量</strong>
+        </div>
+        <div>
+          <span>浏览器缓存</span>
+          <strong id="browserCacheStatus">等待写入</strong>
+        </div>
+      </section>
+
+      <section class="rule-panel">
+        <div class="section-heading">
+          <h2>筛选条件</h2>
+          <span>勾选后点击应用筛选，增量更新只补充最新交易日</span>
+        </div>
+        <div id="conditionList" class="condition-grid"></div>
+      </section>
+
+      <section class="table-section">
+        <div class="section-heading">
+          <h2>命中结果</h2>
+          <span id="resultNote">尚未开始筛选</span>
+        </div>
+        <div id="warningBox" class="warning" hidden></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>代码</th>
+                <th>名称</th>
+                <th>价格/涨幅</th>
+                <th>均线</th>
+                <th>成交量</th>
+                <th>上影线</th>
+                <th>主力资金</th>
+                <th>扩展指标</th>
+                <th>明细</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody">
+              <tr>
+                <td colspan="9" class="empty">后台首次加载后显示结果。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="table-section">
+        <div class="section-heading">
+          <h2>接近命中</h2>
+          <span>按通过条件数量排序</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>代码</th>
+                <th>名称</th>
+                <th>通过</th>
+                <th>未满足条件</th>
+                <th>关键指标</th>
+                <th>明细</th>
+              </tr>
+            </thead>
+            <tbody id="nearMissBody">
+              <tr>
+                <td colspan="6" class="empty">暂无数据。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="table-section" id="stockDetailSection" hidden>
+        <div class="section-heading">
+          <h2>股票计算明细</h2>
+          <span id="stockDetailTitle">点击股票后显示</span>
+        </div>
+        <pre id="stockDetailBody" class="detail-pre"></pre>
+      </section>
+
+      <section class="table-section">
+        <div class="section-heading">
+          <h2>缺少历史数据</h2>
+          <span>仍参与筛选，缺失条件按不符合处理</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>代码</th>
+                <th>名称</th>
+                <th>历史根数</th>
+                <th>最新交易日</th>
+                <th>缺少根数</th>
+                <th>原因</th>
+              </tr>
+            </thead>
+            <tbody id="incompleteBody">
+              <tr>
+                <td colspan="6" class="empty">暂无数据。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
