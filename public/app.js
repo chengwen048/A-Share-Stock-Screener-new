@@ -173,6 +173,191 @@ function detailButton(stock) {
   return `<button type="button" class="detail-button" data-stock-detail="${stockCode(stock)}">查看计算</button>`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function passBadge(passed) {
+  return `<span class="status-pill ${passed ? 'pass' : 'fail'}">${passed ? '通过' : '未通过'}</span>`;
+}
+
+function detailValue(value, formatter = formatNumber) {
+  return formatter(value);
+}
+
+function renderMiniStats(items) {
+  return `<div class="mini-stat-grid">
+    ${items
+      .map((item) => `<div class="mini-stat">
+        <span>${escapeHtml(item.label)}</span>
+        <strong class="${item.className ?? ''}">${escapeHtml(item.value)}</strong>
+      </div>`)
+      .join('')}
+  </div>`;
+}
+
+function conditionLabel(key) {
+  return conditionDefinitions.find((condition) => condition.key === key)?.label ?? key;
+}
+
+function explainCondition(key, payload) {
+  const metrics = payload.metrics ?? {};
+  const details = payload.details ?? {};
+  const passed = Boolean(payload.checks?.[key]);
+  const row = { title: conditionLabel(key), passed, formula: '', values: [] };
+
+  if (key === 'movingAverageBullish') {
+    row.formula = '判断 MA5 > MA10 > MA20 > MA60。';
+    row.values = [
+      `MA5 ${formatNumber(metrics.ma5)}`,
+      `MA10 ${formatNumber(metrics.ma10)}`,
+      `MA20 ${formatNumber(metrics.ma20)}`,
+      `MA60 ${formatNumber(metrics.ma60)}`
+    ];
+  } else if (key === 'aboveYearLine') {
+    row.formula = '判断收盘价是否站上 250 日均线。';
+    row.values = [`收盘 ${formatNumber(metrics.close)}`, `MA250 ${formatNumber(metrics.ma250)}`];
+  } else if (key === 'quietPreviousVolume') {
+    row.formula = '放量前 20 个交易日成交量越稳定，CV 越小。默认要求 CV < 0.30。';
+    row.values = [`CV ${formatNumber(metrics.volumeCv20BeforeBreakout, 3)}`];
+  } else if (key === 'twoDayHugeVolume') {
+    row.formula = '分别用今日和上一交易日成交量，除以各自之前 20 个交易日均量。默认要求两天都 >= 2.50。';
+    row.values = [
+      `今日 ${formatNumber(metrics.todayVolumeMultiple20)} 倍`,
+      `上一交易日 ${formatNumber(metrics.yesterdayVolumeMultiple20)} 倍`,
+      `今日成交量 ${formatNumber(metrics.todayVolume, 0)}`,
+      `上一交易日成交量 ${formatNumber(metrics.yesterdayVolume, 0)}`
+    ];
+  } else if (key === 'twoDayLongUpperShadow') {
+    row.formula = '上影线比例 = (最高价 - max(开盘价, 收盘价)) / (最高价 - 最低价)。默认要求两天都 > 45%。';
+    row.values = [
+      `今日 ${formatPercentRatio(metrics.todayUpperShadowRatio)}`,
+      `上一交易日 ${formatPercentRatio(metrics.yesterdayUpperShadowRatio)}`
+    ];
+  } else if (key === 'twoDayMainMoneyInflow') {
+    row.formula = '主力资金 = 特大单净额 + 大单净额。默认要求两天都大于 0。';
+    row.values = [
+      `今日 ${formatMoney(metrics.todayMainNetInflow)}`,
+      `上一交易日 ${formatMoney(metrics.yesterdayMainNetInflow)}`
+    ];
+    const todayMoney = details.mainMoneyCalculations?.today;
+    const previousMoney = details.mainMoneyCalculations?.previous;
+    if (todayMoney?.sourceRowAvailable) {
+      row.values.push(`今日大单买/卖 ${formatNumber(todayMoney.buyLargeAmountWan)}万 / ${formatNumber(todayMoney.sellLargeAmountWan)}万`);
+      row.values.push(`今日特大单买/卖 ${formatNumber(todayMoney.buyExtraLargeAmountWan)}万 / ${formatNumber(todayMoney.sellExtraLargeAmountWan)}万`);
+    }
+    if (previousMoney?.sourceRowAvailable) {
+      row.values.push(`上一交易日大单买/卖 ${formatNumber(previousMoney.buyLargeAmountWan)}万 / ${formatNumber(previousMoney.sellLargeAmountWan)}万`);
+      row.values.push(`上一交易日特大单买/卖 ${formatNumber(previousMoney.buyExtraLargeAmountWan)}万 / ${formatNumber(previousMoney.sellExtraLargeAmountWan)}万`);
+    }
+  } else if (key === 'todayPctChangeMin') {
+    row.formula = '判断今日涨跌幅是否达到你设置的下限。';
+    row.values = [`今日涨跌幅 ${formatNumber(metrics.pctChange)}%`];
+  } else if (key === 'priceRange') {
+    row.formula = '判断收盘价是否在你设置的股价区间内。';
+    row.values = [`收盘 ${formatNumber(metrics.close)}`];
+  } else if (key === 'amountMin') {
+    row.formula = '判断今日成交额是否达到你设置的下限。';
+    row.values = [`成交额 ${formatMoney(metrics.amount)}`];
+  } else if (key === 'turnoverRange') {
+    row.formula = '判断今日换手率是否在你设置的区间内。';
+    row.values = [`换手率 ${formatNumber(metrics.turnover)}%`];
+  } else if (key === 'mainMoneyRatioMin') {
+    row.formula = '判断今日主力净流入占成交额的比例是否达到下限。';
+    row.values = [`主力占比 ${formatNumber(metrics.todayMainMoneyRatio)}%`];
+  } else if (key === 'twoDayMainMoneyAmountMin') {
+    row.formula = '判断今日和上一交易日主力净流入金额是否都达到下限。';
+    row.values = [`今日 ${formatMoney(metrics.todayMainNetInflow)}`, `上一交易日 ${formatMoney(metrics.yesterdayMainNetInflow)}`];
+  } else if (key === 'floatMarketCapMax') {
+    row.formula = '判断流通市值是否低于你设置的上限。';
+    row.values = [`流通市值 ${formatMoney(metrics.floatMarketCap)}`];
+  } else if (key === 'aboveMa20Pct') {
+    row.formula = '判断收盘价相对 20 日均线的偏离幅度。';
+    row.values = [`高于 MA20 ${formatNumber(metrics.closeVsMa20Pct)}%`];
+  } else if (key === 'notSt') {
+    row.formula = '排除名称中带 ST 的股票。';
+    row.values = [`股票名称 ${payload.stock?.name ?? '-'}`];
+  } else if (key === 'marketScope') {
+    row.formula = '判断股票是否属于你选择的市场范围。';
+    row.values = [`股票代码 ${payload.stock?.ts_code ?? '-'}`];
+  } else {
+    row.formula = '按当前条件设置判断。';
+    row.values = ['暂无更多说明'];
+  }
+
+  return row;
+}
+
+function renderDetailHtml(payload) {
+  const metrics = payload.metrics ?? {};
+  const details = payload.details ?? {};
+  const failedKeys = payload.failedKeys ?? [];
+  const checkKeys = Object.keys(payload.checks ?? {});
+  const passedCount = checkKeys.length - failedKeys.length;
+  const conditionRows = checkKeys.map((key) => explainCondition(key, payload));
+  const today = details.dailyRows?.todayCompact ?? details.dailyRows?.today ?? {};
+  const previous = details.dailyRows?.previousCompact ?? details.dailyRows?.previous ?? {};
+
+  return `<div class="detail-panel">
+    <div class="detail-hero">
+      <div>
+        <span class="section-tag">Calculation</span>
+        <h3>${escapeHtml(payload.stock?.name)} ${escapeHtml(payload.stock?.ts_code)}</h3>
+        <p>实际交易日：${escapeHtml(details.tradingDatePolicy?.actualLatestTradeDateChina ?? '-')}；上一交易日：${escapeHtml(details.tradingDatePolicy?.previousTradeDateChina ?? '-')}</p>
+      </div>
+      <div class="score-badge">
+        <strong>${passedCount}/${checkKeys.length}</strong>
+        <span>条件通过</span>
+      </div>
+    </div>
+
+    ${renderMiniStats([
+      { label: '收盘价', value: detailValue(metrics.close) },
+      { label: '今日涨跌幅', value: `${detailValue(metrics.pctChange)}%`, className: valueClass(metrics.pctChange) },
+      { label: '20日均量比（今）', value: `${detailValue(metrics.todayVolumeMultiple20)} 倍` },
+      { label: '20日均量比（昨）', value: `${detailValue(metrics.yesterdayVolumeMultiple20)} 倍` },
+      { label: '主力净流入（今）', value: detailValue(metrics.todayMainNetInflow, formatMoney), className: valueClass(metrics.todayMainNetInflow) },
+      { label: '主力净流入（昨）', value: detailValue(metrics.yesterdayMainNetInflow, formatMoney), className: valueClass(metrics.yesterdayMainNetInflow) }
+    ])}
+
+    <div class="detail-section">
+      <h4>结论</h4>
+      <p>${failedKeys.length ? `这只股票目前还有 ${failedKeys.length} 个条件未满足：${escapeHtml(failedKeys.map(conditionLabel).join('、'))}。` : '这只股票满足当前勾选的全部条件。'}</p>
+    </div>
+
+    <div class="detail-section">
+      <h4>逐项判断</h4>
+      <div class="condition-result-list">
+        ${conditionRows
+          .map((row) => `<article class="condition-result ${row.passed ? 'is-pass' : 'is-fail'}">
+            <div class="condition-result-head">
+              <strong>${escapeHtml(row.title)}</strong>
+              ${passBadge(row.passed)}
+            </div>
+            <p>${escapeHtml(row.formula)}</p>
+            <div class="value-chips">${row.values.map((value) => `<span>${escapeHtml(value)}</span>`).join('')}</div>
+          </article>`)
+          .join('')}
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h4>原始交易数据</h4>
+      ${renderMiniStats([
+        { label: '今日开盘 / 最高 / 最低', value: `${formatNumber(today.open)} / ${formatNumber(today.high)} / ${formatNumber(today.low)}` },
+        { label: '今日收盘 / 成交量', value: `${formatNumber(today.close)} / ${formatNumber(today.volume, 0)}` },
+        { label: '上一交易日开盘 / 最高 / 最低', value: `${formatNumber(previous.open)} / ${formatNumber(previous.high)} / ${formatNumber(previous.low)}` },
+        { label: '上一交易日收盘 / 成交量', value: `${formatNumber(previous.close)} / ${formatNumber(previous.volume, 0)}` }
+      ])}
+    </div>
+  </div>`;
+}
+
 function paramsToHtml(condition) {
   if (!condition.params?.length) return '';
   return `<div class="param-grid">
@@ -338,16 +523,17 @@ function renderNearMisses(rows) {
 async function showStockDetail(tsCode) {
   stockDetailSection.hidden = false;
   stockDetailTitle.textContent = `${tsCode} 计算明细加载中...`;
-  stockDetailBody.textContent = '正在读取交易日、日线、资金流和公式明细...';
+  stockDetailBody.innerHTML = '<div class="detail-loading">正在读取交易日、日线、资金流和公式明细...</div>';
   try {
     const response = await fetch(`/api/stock/${encodeURIComponent(tsCode)}/detail`);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.message || '明细加载失败');
-    stockDetailTitle.textContent = `${payload.stock.name} ${payload.stock.ts_code}，实际交易日 ${payload.details.tradingDatePolicy.actualLatestTradeDateChina} / 上一交易日 ${payload.details.tradingDatePolicy.previousTradeDateChina}`;
-    stockDetailBody.textContent = JSON.stringify(payload, null, 2);
+    stockDetailTitle.textContent = `${payload.stock.name} ${payload.stock.ts_code}`;
+    stockDetailBody.innerHTML = renderDetailHtml(payload);
+    stockDetailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
     stockDetailTitle.textContent = `${tsCode} 明细加载失败`;
-    stockDetailBody.textContent = error.message;
+    stockDetailBody.innerHTML = `<div class="detail-loading danger">${escapeHtml(error.message)}</div>`;
   }
 }
 
@@ -498,6 +684,13 @@ conditionList.addEventListener('change', () => {
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-stock-detail]');
   if (button) showStockDetail(button.dataset.stockDetail);
+});
+
+document.querySelectorAll('.toc-link').forEach((link) => {
+  link.addEventListener('click', () => {
+    document.querySelectorAll('.toc-link').forEach((item) => item.classList.remove('active'));
+    link.classList.add('active');
+  });
 });
 
 init();
