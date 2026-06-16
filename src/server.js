@@ -635,8 +635,22 @@ async function readSnapshot() {
   return readJsonFile(snapshotFile());
 }
 
+function stripHeavyRowFields(row) {
+  if (!row) return row;
+  const { historyBars, moneyFlows, ...rest } = row;
+  return rest;
+}
+
+function compactDatasetPayload(payload) {
+  if (!payload) return payload;
+  return {
+    ...payload,
+    rows: Array.isArray(payload.rows) ? payload.rows.map(stripHeavyRowFields) : payload.rows
+  };
+}
+
 async function writeSnapshot(payload) {
-  await writeJsonFile(snapshotFile(), payload);
+  await writeJsonFile(snapshotFile(), compactDatasetPayload(payload));
 }
 
 async function getTradingDates() {
@@ -873,6 +887,18 @@ function moneyFlowDetail(rawRow) {
     buyExtraLargeAmountWan: buyExtraLargeWan,
     sellExtraLargeAmountWan: sellExtraLargeWan,
     valueYuan
+  };
+}
+
+function rawMoneyFlowFromParsed(flow) {
+  if (!flow) return null;
+  return {
+    ts_code: flow.tsCode,
+    trade_date: isoToTradeDate(flow.date),
+    buy_lg_amount: hasValue(flow.largeIn) ? flow.largeIn / 10000 : null,
+    sell_lg_amount: hasValue(flow.largeOut) ? flow.largeOut / 10000 : null,
+    buy_elg_amount: hasValue(flow.superLargeIn) ? flow.superLargeIn / 10000 : null,
+    sell_elg_amount: hasValue(flow.superLargeOut) ? flow.superLargeOut / 10000 : null
   };
 }
 
@@ -1317,7 +1343,13 @@ async function buildFullMarketRows(stockBasics, tradingDates, activeConditions) 
         incompleteRows.push(describeIncompleteStock(bucket.stock, bucket.bars));
       }
       const evaluated = evaluateStock(bucket.stock, bucket.bars, bucket.flows, activeConditions);
-      if (evaluated) rows.push(evaluated);
+      if (evaluated) {
+        rows.push({
+          ...evaluated,
+          historyBars: bucket.bars,
+          moneyFlows: bucket.flows
+        });
+      }
     } catch (error) {
       errors.push(error.message || String(error));
     }
@@ -1501,6 +1533,47 @@ function basicDataRows() {
     .sort((a, b) => String(a.ts_code ?? '').localeCompare(String(b.ts_code ?? '')));
 }
 
+function findCachedStockRow(tsCode) {
+  return (datasetCache?.rows ?? []).find((row) => row.stock?.ts_code === tsCode) ?? null;
+}
+
+async function getStockContext(tsCode) {
+  const cached = findCachedStockRow(tsCode);
+  if (cached?.historyBars?.length) {
+    return {
+      stock: cached.stock,
+      bars: cached.historyBars ?? [],
+      flows: cached.moneyFlows ?? [],
+      cachedRow: cached,
+      fromSnapshot: true
+    };
+  }
+
+  const stock = cached?.stock ?? (await getStockBasics()).find((row) => row.ts_code === tsCode);
+  if (!stock) return null;
+  const tradingDates = await getTradingDates();
+  const recentDates = tradingDates.slice(-260);
+  const bars = await getDailyBars(tsCode, recentDates.at(0), recentDates.at(-1));
+  let flows = [];
+  if (bars.length) {
+    const latestDate = isoToTradeDate(bars.at(-1).date);
+    const latestIndex = tradingDates.indexOf(latestDate);
+    const flowDates = latestIndex >= 1
+      ? tradingDates.slice(Math.max(0, latestIndex - 1), latestIndex + 1)
+      : tradingDates.slice(-2);
+    const rawFlows = (await getMoneyFlowRawForStock(tsCode, flowDates.at(0), flowDates.at(-1)))
+      .filter((row) => flowDates.includes(String(row.trade_date)));
+    flows = rawFlows.map(parseMoneyFlowRow);
+  }
+  return {
+    stock,
+    bars,
+    flows,
+    cachedRow: cached,
+    fromSnapshot: false
+  };
+}
+
 app.get('/api/conditions', (req, res) => {
   res.json({ conditions: conditionDefinitions });
 });
@@ -1609,7 +1682,7 @@ app.get('/api/snapshot', (req, res) => {
   }
 
   res.json({
-    ...datasetCache,
+    ...compactDatasetPayload(datasetCache),
     snapshotLoaded: Boolean(datasetCache.snapshotLoaded),
     dataStatus: buildDataStatus(),
     refreshJob
@@ -1640,18 +1713,16 @@ app.get('/api/basic-data', (req, res) => {
 app.get('/api/stock/:tsCode/kline', async (req, res) => {
   try {
     const tsCode = String(req.params.tsCode || '').toUpperCase();
-    const stock = (datasetCache?.rows ?? []).find((row) => row.stock?.ts_code === tsCode)?.stock
-      ?? (await getStockBasics()).find((row) => row.ts_code === tsCode);
-    if (!stock) {
+    const context = await getStockContext(tsCode);
+    if (!context?.stock) {
       res.status(404).json({ message: `未找到股票：${tsCode}` });
       return;
     }
 
-    const tradingDates = await getTradingDates();
-    const recentDates = tradingDates.slice(-260);
-    const bars = await getDailyBars(tsCode, recentDates.at(0), recentDates.at(-1));
+    const bars = context.bars ?? [];
     res.json({
-      stock,
+      stock: context.stock,
+      fromSnapshot: context.fromSnapshot,
       localCache: datasetCache?.localCache ?? null,
       bars: bars.map((bar) => ({
         tradeDate: isoToTradeDate(bar.date),
@@ -1673,33 +1744,28 @@ app.get('/api/stock/:tsCode/kline', async (req, res) => {
 app.get('/api/stock/:tsCode/detail', async (req, res) => {
   try {
     const tsCode = String(req.params.tsCode || '').toUpperCase();
-    const stock = (datasetCache?.rows ?? []).find((row) => row.stock?.ts_code === tsCode)?.stock
-      ?? (await getStockBasics()).find((row) => row.ts_code === tsCode);
-    if (!stock) {
+    const context = await getStockContext(tsCode);
+    if (!context?.stock) {
       res.status(404).json({ message: `未找到股票：${tsCode}` });
       return;
     }
 
-    const tradingDates = await getTradingDates();
-    const recentDates = tradingDates.slice(-260);
-    const bars = await getDailyBars(tsCode, recentDates.at(0), recentDates.at(-1));
+    const stock = context.stock;
+    const bars = context.bars ?? [];
     if (!bars.length) {
       res.status(404).json({ message: `${tsCode} 没有可用日线数据` });
       return;
     }
 
-    const latestDate = isoToTradeDate(bars.at(-1).date);
-    const latestIndex = tradingDates.indexOf(latestDate);
-    const flowDates = latestIndex >= 1
-      ? tradingDates.slice(Math.max(0, latestIndex - 1), latestIndex + 1)
-      : tradingDates.slice(-2);
-    const rawFlows = (await getMoneyFlowRawForStock(tsCode, flowDates.at(0), flowDates.at(-1)))
-      .filter((row) => flowDates.includes(String(row.trade_date)));
-    const parsedFlows = rawFlows.map(parseMoneyFlowRow);
-    const evaluated = evaluateStock(stock, bars, parsedFlows, normalizeConditions());
+    const parsedFlows = context.flows ?? [];
+    const rawFlows = parsedFlows.length
+      ? parsedFlows.map(rawMoneyFlowFromParsed).filter(Boolean)
+      : [];
+    const evaluated = context.cachedRow ?? evaluateStock(stock, bars, parsedFlows, normalizeConditions());
 
     res.json({
       stock,
+      fromSnapshot: context.fromSnapshot,
       metrics: evaluated.metrics,
       checks: evaluated.checks,
       failedKeys: evaluated.failedKeys,

@@ -4,7 +4,7 @@
   --panel: rgba(9, 13, 24, 0.94);
   --panel-strong: rgba(11, 17, 30, 0.98);
   --panel-soft: rgba(15, 22, 38, 0.84);
-  --line: rgba(60, 197, 255, 0.22);
+  --line: rgba(95, 208, 255, 0.24);
   --line-strong: rgba(77, 218, 255, 0.62);
   --text: #f4f8ff;
   --muted: #7e8ca3;
@@ -31,9 +31,9 @@ body {
   margin: 0;
   min-width: 320px;
   background:
-    radial-gradient(circle at 22% 0, rgba(73, 214, 255, 0.1), transparent 30%),
-    radial-gradient(circle at 76% 8%, rgba(43, 157, 255, 0.12), transparent 34%),
-    linear-gradient(135deg, #04070c 0%, #070d18 52%, #05070b 100%);
+    radial-gradient(circle at 22% 0, rgba(73, 214, 255, 0.13), transparent 30%),
+    radial-gradient(circle at 76% 8%, rgba(255, 216, 77, 0.08), transparent 28%),
+    linear-gradient(135deg, #04070c 0%, #08111f 48%, #05070b 100%);
   color: var(--text);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -49,6 +49,17 @@ body::before {
     linear-gradient(90deg, rgba(73, 214, 255, 0.028) 1px, transparent 1px);
   background-size: 42px 42px;
   mask-image: linear-gradient(to bottom, #000, transparent 72%);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, transparent 0 43%, rgba(73, 214, 255, 0.055) 43.4%, transparent 44% 100%),
+    linear-gradient(60deg, transparent 0 62%, rgba(255, 216, 77, 0.045) 62.3%, transparent 63% 100%);
+  opacity: 0.72;
 }
 
 .app-shell {
@@ -67,9 +78,11 @@ body::before {
   align-self: start;
   min-height: calc(100vh - 36px);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 14px;
   padding: 14px 9px;
-  background: linear-gradient(180deg, rgba(7, 13, 24, 0.98), rgba(5, 9, 17, 0.96));
+  background:
+    linear-gradient(180deg, rgba(8, 15, 28, 0.98), rgba(5, 9, 17, 0.96)),
+    linear-gradient(90deg, rgba(73, 214, 255, 0.08), transparent 34%);
   box-shadow: var(--shadow);
 }
 
@@ -85,8 +98,9 @@ body::before {
   width: 52px;
   height: 52px;
   margin: 0 auto 12px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #58d6ff, #2879ff);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 13px;
+  background: linear-gradient(135deg, #6ee7ff, #2879ff 62%, #ffd84d);
   color: #06111f;
   font-weight: 900;
   box-shadow: 0 0 26px rgba(73, 214, 255, 0.24);
@@ -160,21 +174,23 @@ h4 {
   place-items: center;
   min-height: 42px;
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: 8px;
   padding: 0 6px;
   color: var(--muted-strong);
   text-decoration: none;
   font-size: 12px;
   font-weight: 700;
   text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 
 .toc-link:hover,
 .toc-link.active {
   border-color: var(--line-strong);
-  background: rgba(73, 214, 255, 0.14);
+  background: linear-gradient(135deg, rgba(73, 214, 255, 0.18), rgba(255, 216, 77, 0.07));
   color: var(--text);
-  box-shadow: 0 0 18px rgba(73, 214, 255, 0.1) inset;
+  box-shadow: 0 0 20px rgba(73, 214, 255, 0.12) inset;
+  transform: translateY(-1px);
 }
 
 .side-footer {
@@ -199,7 +215,7 @@ h4 {
 
 .content-area {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   min-width: 0;
 }
 
@@ -216,7 +232,9 @@ h4 {
 .metric {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel);
+  background:
+    linear-gradient(180deg, rgba(15, 23, 40, 0.9), rgba(7, 11, 20, 0.94)),
+    var(--panel);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.04) inset,
     0 0 0 1px rgba(73, 214, 255, 0.04),
@@ -230,6 +248,10 @@ h4 {
   justify-content: space-between;
   gap: 16px;
   padding: 18px;
+  border-color: rgba(73, 214, 255, 0.34);
+  background:
+    linear-gradient(135deg, rgba(73, 214, 255, 0.13), rgba(12, 18, 32, 0.94) 42%, rgba(255, 216, 77, 0.06)),
+    rgba(7, 11, 20, 0.96);
 }
 
 .topbar p {
@@ -261,12 +283,15 @@ button {
   cursor: pointer;
   font-weight: 800;
   white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(43, 157, 255, 0.18);
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
 
 button.secondary {
   border-color: var(--line-strong);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.055);
   color: var(--text);
+  box-shadow: none;
 }
 
 button.detail-button.secondary {
@@ -278,6 +303,7 @@ button.detail-button.secondary {
 
 button:hover {
   filter: brightness(1.08);
+  transform: translateY(-1px);
 }
 
 button:disabled {
@@ -297,17 +323,23 @@ button:disabled {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: linear-gradient(180deg, rgba(11, 17, 30, 0.98), rgba(7, 11, 20, 0.96));
+  background:
+    linear-gradient(180deg, rgba(12, 20, 38, 0.98), rgba(7, 11, 20, 0.96)),
+    linear-gradient(135deg, rgba(73, 214, 255, 0.08), transparent);
 }
 
 .metric strong {
   color: var(--text);
   font-size: 19px;
   line-height: 1.25;
+  text-shadow: 0 0 20px rgba(73, 214, 255, 0.12);
 }
 
 .primary-metric {
   border-color: rgba(255, 216, 77, 0.48);
+  background:
+    linear-gradient(135deg, rgba(255, 216, 77, 0.11), rgba(73, 214, 255, 0.1)),
+    linear-gradient(180deg, rgba(12, 20, 38, 0.98), rgba(7, 11, 20, 0.96));
 }
 
 .status-board {
@@ -316,7 +348,8 @@ button:disabled {
   gap: 1px;
   overflow: hidden;
   padding: 1px;
-  background: var(--line);
+  border-color: rgba(73, 214, 255, 0.34);
+  background: linear-gradient(135deg, rgba(73, 214, 255, 0.4), rgba(255, 216, 77, 0.22));
 }
 
 .status-board.compact-status {
@@ -326,7 +359,7 @@ button:disabled {
 .status-board > div {
   min-height: 72px;
   padding: 12px;
-  background: rgba(7, 11, 20, 0.96);
+  background: rgba(7, 11, 20, 0.97);
 }
 
 .status-board span,
@@ -363,7 +396,14 @@ select {
   border-radius: 6px;
   padding: 0 10px;
   color: var(--text);
-  background: rgba(5, 9, 17, 0.88);
+  background: rgba(5, 9, 17, 0.9);
+  outline: none;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--line-strong);
+  box-shadow: 0 0 0 3px rgba(73, 214, 255, 0.1);
 }
 
 .rule-panel,
@@ -391,7 +431,7 @@ select {
 
 .condition-group h3 {
   margin: 0 0 9px;
-  color: var(--accent);
+  color: var(--accent-2);
   font-size: 13px;
 }
 
@@ -405,7 +445,9 @@ select {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 11px;
-  background: linear-gradient(180deg, rgba(12, 18, 32, 0.88), rgba(7, 11, 20, 0.84));
+  background:
+    linear-gradient(180deg, rgba(12, 18, 32, 0.9), rgba(7, 11, 20, 0.86)),
+    rgba(73, 214, 255, 0.02);
   transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
@@ -416,7 +458,8 @@ select {
 
 .condition-card:has(input[type="checkbox"]:checked) {
   border-color: rgba(73, 214, 255, 0.58);
-  background: linear-gradient(135deg, rgba(73, 214, 255, 0.13), rgba(43, 157, 255, 0.08));
+  background: linear-gradient(135deg, rgba(73, 214, 255, 0.15), rgba(255, 216, 77, 0.07), rgba(43, 157, 255, 0.08));
+  box-shadow: 0 0 0 1px rgba(73, 214, 255, 0.06) inset;
 }
 
 .condition-toggle {
@@ -464,6 +507,8 @@ select {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(95, 208, 255, 0.14);
 }
 
 .section-heading > span {
@@ -477,6 +522,7 @@ select {
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
+  background: rgba(3, 7, 14, 0.42);
 }
 
 .basic-toolbar {
@@ -502,7 +548,7 @@ select {
   display: grid;
   place-items: center;
   padding: 18px;
-  background: rgba(0, 0, 0, 0.62);
+  background: rgba(0, 0, 0, 0.68);
   backdrop-filter: blur(10px);
 }
 
@@ -515,7 +561,8 @@ select {
   max-height: min(88vh, 780px);
   overflow: auto;
   padding: 16px;
-  background: linear-gradient(180deg, rgba(12, 18, 32, 0.98), rgba(7, 11, 20, 0.98));
+  border-color: rgba(73, 214, 255, 0.36);
+  background: linear-gradient(180deg, rgba(13, 21, 38, 0.99), rgba(7, 11, 20, 0.99));
 }
 
 .detail-modal {
@@ -523,7 +570,8 @@ select {
   max-height: min(88vh, 780px);
   overflow: auto;
   padding: 16px;
-  background: linear-gradient(180deg, rgba(12, 18, 32, 0.98), rgba(7, 11, 20, 0.98));
+  border-color: rgba(73, 214, 255, 0.36);
+  background: linear-gradient(180deg, rgba(13, 21, 38, 0.99), rgba(7, 11, 20, 0.99));
 }
 
 .modal-actions {
@@ -565,13 +613,13 @@ table {
   width: 100%;
   min-width: 1120px;
   border-collapse: collapse;
-  background: rgba(8, 12, 34, 0.66);
+  background: rgba(8, 12, 34, 0.7);
 }
 
 th,
 td {
   border-bottom: 1px solid var(--line);
-  padding: 10px 9px;
+  padding: 11px 10px;
   text-align: left;
   vertical-align: top;
   font-size: 13px;
@@ -582,7 +630,8 @@ th {
   top: 0;
   color: var(--muted-strong);
   font-weight: 800;
-  background: rgba(17, 25, 62, 0.98);
+  background: linear-gradient(180deg, rgba(23, 35, 72, 0.98), rgba(13, 22, 45, 0.98));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
 tr:last-child td {
@@ -590,12 +639,13 @@ tr:last-child td {
 }
 
 tbody tr:hover {
-  background: rgba(97, 217, 255, 0.075);
+  background: rgba(97, 217, 255, 0.085);
 }
 
 .code {
   color: var(--accent);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-weight: 800;
 }
 
 .stack {
@@ -634,6 +684,7 @@ tbody tr:hover {
   padding: 0 12px;
   border-radius: 6px;
   font-size: 12px;
+  box-shadow: none;
 }
 
 .detail-pre {
@@ -729,7 +780,7 @@ tbody tr:hover {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 13px;
-  background: rgba(8, 13, 38, 0.74);
+  background: rgba(8, 13, 38, 0.78);
 }
 
 .detail-section h4 {

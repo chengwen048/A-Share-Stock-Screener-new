@@ -47,6 +47,10 @@ let browserDb = null;
 let basicDataRows = [];
 let watchlistRows = [];
 let latestScreenRows = { results: [], nearMisses: [] };
+const stockDetailCache = new Map();
+const stockDetailRequests = new Map();
+const klineCache = new Map();
+const klineRequests = new Map();
 
 function formatChinaDateTime(value = new Date()) {
   return new Intl.DateTimeFormat('zh-CN', {
@@ -697,20 +701,37 @@ function removeFromWatchlist(tsCode) {
 
 async function showStockDetail(tsCode) {
   stockDetailPanel.hidden = false;
+  const cached = stockDetailCache.get(tsCode);
+  if (cached) {
+    stockDetailTitle.textContent = `${cached.stock.name} ${cached.stock.ts_code}`;
+    stockDetailMeta.textContent = `数据更新至 ${cached.details?.tradingDatePolicy?.actualLatestTradeDateChina ?? '-'}`;
+    stockDetailBody.innerHTML = renderDetailHtml(cached);
+    return;
+  }
   stockDetailTitle.textContent = `${tsCode} 计算明细加载中...`;
-  stockDetailMeta.textContent = '正在读取交易日、日线、资金流和公式明细';
-  stockDetailBody.innerHTML = '<div class="detail-loading">正在读取交易日、日线、资金流和公式明细...</div>';
+  stockDetailMeta.textContent = '首次读取后会缓存，重复打开会更快';
+  stockDetailBody.innerHTML = '<div class="detail-loading">正在读取缓存中的交易日、日线、资金流和公式明细...</div>';
   try {
-    const response = await fetch(`/api/stock/${encodeURIComponent(tsCode)}/detail`);
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.message || '明细加载失败');
+    let request = stockDetailRequests.get(tsCode);
+    if (!request) {
+      request = fetch(`/api/stock/${encodeURIComponent(tsCode)}/detail`).then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || '明细加载失败');
+        return payload;
+      });
+      stockDetailRequests.set(tsCode, request);
+    }
+    const payload = await request;
+    stockDetailCache.set(tsCode, payload);
     stockDetailTitle.textContent = `${payload.stock.name} ${payload.stock.ts_code}`;
-    stockDetailMeta.textContent = `数据更新至 ${payload.tradeDates?.latestTradeDateChina ?? '-'}`;
+    stockDetailMeta.textContent = `数据更新至 ${payload.details?.tradingDatePolicy?.actualLatestTradeDateChina ?? '-'}`;
     stockDetailBody.innerHTML = renderDetailHtml(payload);
   } catch (error) {
     stockDetailTitle.textContent = `${tsCode} 明细加载失败`;
     stockDetailMeta.textContent = '读取失败';
     stockDetailBody.innerHTML = `<div class="detail-loading danger">${escapeHtml(error.message)}</div>`;
+  } finally {
+    stockDetailRequests.delete(tsCode);
   }
 }
 
@@ -880,29 +901,49 @@ function drawKlineChart(bars) {
 
 async function showKline(tsCode) {
   klinePanel.hidden = false;
+  const cached = klineCache.get(tsCode);
+  if (cached) {
+    renderKlinePayload(cached);
+    return;
+  }
   klineTitle.textContent = `${tsCode} K 线加载中...`;
-  klineMeta.textContent = '正在读取最近交易日 K 线';
+  klineMeta.textContent = '正在读取缓存中的最近交易日 K 线';
+  klineStats.innerHTML = '<div class="detail-loading">首次读取后会缓存，重复打开会更快。</div>';
   try {
-    const response = await fetch(`/api/stock/${encodeURIComponent(tsCode)}/kline`);
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.message || 'K线加载失败');
-    const bars = payload.bars ?? [];
-    const latest = bars.at(-1) ?? {};
-    klineTitle.textContent = `${payload.stock.name} ${payload.stock.ts_code}`;
-    klineMeta.textContent = `${bars[0]?.tradeDateChina ?? '-'} 至 ${latest.tradeDateChina ?? '-'}，共 ${bars.length} 根K线`;
-    drawKlineChart(bars);
-    klineStats.innerHTML = renderMiniStatItems([
-      { label: '最新交易日', value: latest.tradeDateChina ?? '-' },
-      { label: '收盘价', value: formatNumber(latest.close) },
-      { label: '涨跌幅', value: `${formatNumber(latest.pctChange)}%`, className: valueClass(latest.pctChange) },
-      { label: '最高 / 最低', value: `${formatNumber(latest.high)} / ${formatNumber(latest.low)}` },
-      { label: '成交量', value: formatNumber(latest.volume, 0) },
-      { label: '成交额', value: formatMoney(latest.amount) }
-    ]);
+    let request = klineRequests.get(tsCode);
+    if (!request) {
+      request = fetch(`/api/stock/${encodeURIComponent(tsCode)}/kline`).then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || 'K线加载失败');
+        return payload;
+      });
+      klineRequests.set(tsCode, request);
+    }
+    const payload = await request;
+    klineCache.set(tsCode, payload);
+    renderKlinePayload(payload);
   } catch (error) {
     klineTitle.textContent = `${tsCode} K 线加载失败`;
     klineMeta.textContent = error.message;
+  } finally {
+    klineRequests.delete(tsCode);
   }
+}
+
+function renderKlinePayload(payload) {
+  const bars = payload.bars ?? [];
+  const latest = bars.at(-1) ?? {};
+  klineTitle.textContent = `${payload.stock.name} ${payload.stock.ts_code}`;
+  klineMeta.textContent = `${bars[0]?.tradeDateChina ?? '-'} 至 ${latest.tradeDateChina ?? '-'}，共 ${bars.length} 根K线`;
+  drawKlineChart(bars);
+  klineStats.innerHTML = renderMiniStatItems([
+    { label: '最新交易日', value: latest.tradeDateChina ?? '-' },
+    { label: '收盘价', value: formatNumber(latest.close) },
+    { label: '涨跌幅', value: `${formatNumber(latest.pctChange)}%`, className: valueClass(latest.pctChange) },
+    { label: '最高 / 最低', value: `${formatNumber(latest.high)} / ${formatNumber(latest.low)}` },
+    { label: '成交量', value: formatNumber(latest.volume, 0) },
+    { label: '成交额', value: formatMoney(latest.amount) }
+  ]);
 }
 
 function closeKline() {
@@ -1068,14 +1109,6 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !stockDetailPanel.hidden) {
     closeStockDetail();
   }
-});
-
-document.querySelector('a[href="#stockDetailSection"]')?.addEventListener('click', (event) => {
-  event.preventDefault();
-  stockDetailPanel.hidden = false;
-  stockDetailTitle.textContent = '股票计算明细';
-  stockDetailMeta.textContent = '请先在命中结果或接近命中里点击“明细”';
-  stockDetailBody.innerHTML = '<div class="detail-loading">选择一只股票后，这里会显示关键指标、原始数据和公式解释。</div>';
 });
 
 document.querySelectorAll('.toc-link').forEach((link) => {
