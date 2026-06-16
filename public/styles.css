@@ -491,6 +491,102 @@ select {
   appearance: none;
 }
 
+.live-toolbar,
+.manual-toolbar {
+  grid-template-columns: auto;
+  justify-content: start;
+  margin-top: 12px;
+}
+
+.manual-toolbar {
+  grid-template-columns: minmax(180px, 1fr) 160px 160px auto;
+  justify-content: stretch;
+}
+
+.live-account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.live-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(7, 11, 20, 0.82);
+}
+
+.live-data-list {
+  display: grid;
+  gap: 8px;
+  color: var(--muted-strong);
+  font-size: 13px;
+}
+
+.live-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  border: 1px solid rgba(73, 214, 255, 0.14);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.live-row span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.live-row strong {
+  color: var(--text);
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.empty-live {
+  border: 1px solid rgba(73, 214, 255, 0.14);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--muted);
+}
+
+.openclaw-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgba(7, 11, 20, 0.82);
+}
+
+.openclaw-panel strong,
+.openclaw-panel span {
+  display: block;
+}
+
+.openclaw-panel span {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.openclaw-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 0 14px;
+  color: var(--text);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 800;
+}
+
 .compact-heading {
   margin-bottom: 0;
 }
@@ -818,12 +914,19 @@ tbody tr:hover {
   }
 
   .condition-grid-inner,
-  .mini-stat-grid {
+  .mini-stat-grid,
+  .live-account-grid {
     grid-template-columns: 1fr;
   }
 
   .basic-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .manual-toolbar,
+  .openclaw-panel {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

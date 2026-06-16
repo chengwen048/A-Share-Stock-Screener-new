@@ -20,6 +20,9 @@ const DEFAULT_TUSHARE_HTTP_URL = process.env.TUSHARE_HTTP_URL || 'http://8.148.7
 const TUSHARE_TOKEN = process.env.TUSHARE_TOKEN || '';
 const EASTMONEY_ACCOUNT_ID = process.env.EASTMONEY_ACCOUNT_ID || '';
 const EASTMONEY_PASSWORD = process.env.EASTMONEY_PASSWORD || '';
+const EASTMONEY_READONLY_URL = process.env.EASTMONEY_READONLY_URL || '';
+const EASTMONEY_READONLY_TOKEN = process.env.EASTMONEY_READONLY_TOKEN || '';
+const OPENCLAW_URL = process.env.OPENCLAW_URL || '';
 const DATA_DIR = path.join(__dirname, '..', 'data', 'tushare');
 const CACHE_DIRS = {
   daily: path.join(DATA_DIR, 'daily'),
@@ -1521,16 +1524,88 @@ app.get('/api/health', (req, res) => {
 app.get('/api/eastmoney/status', (req, res) => {
   const accountConfigured = Boolean(EASTMONEY_ACCOUNT_ID);
   const passwordConfigured = Boolean(EASTMONEY_PASSWORD);
+  const readonlyUrlConfigured = Boolean(EASTMONEY_READONLY_URL);
   res.json({
     ok: true,
     accountConfigured,
     passwordConfigured,
+    readonlyUrlConfigured,
     readonly: true,
-    connected: false,
-    message: accountConfigured && passwordConfigured
-      ? '已检测到后端环境变量，但尚未接入东方财富实盘只读接口'
-      : '请在后端环境变量配置 EASTMONEY_ACCOUNT_ID 和 EASTMONEY_PASSWORD；不要写入前端或提交到 GitHub'
+    connected: accountConfigured && passwordConfigured && readonlyUrlConfigured,
+    message: accountConfigured && passwordConfigured && readonlyUrlConfigured
+      ? '只读接口环境变量已配置，可读取资产、持仓、当日成交、当日委托'
+      : '请在后端环境变量配置 EASTMONEY_ACCOUNT_ID、EASTMONEY_PASSWORD、EASTMONEY_READONLY_URL；不要写入前端或提交到 GitHub'
   });
+});
+
+app.get('/api/openclaw/status', (req, res) => {
+  res.json({
+    ok: true,
+    configured: Boolean(OPENCLAW_URL),
+    url: OPENCLAW_URL || null,
+    message: OPENCLAW_URL ? 'openclaw 地址已配置' : '请在环境变量 OPENCLAW_URL 中配置独立部署地址'
+  });
+});
+
+async function eastMoneyReadonlyRequest(resource) {
+  if (!EASTMONEY_ACCOUNT_ID || !EASTMONEY_PASSWORD || !EASTMONEY_READONLY_URL) {
+    return {
+      ok: false,
+      configured: false,
+      resource,
+      rows: [],
+      message: '东方财富只读接口未配置完整'
+    };
+  }
+
+  const response = await fetch(EASTMONEY_READONLY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(EASTMONEY_READONLY_TOKEN ? { Authorization: `Bearer ${EASTMONEY_READONLY_TOKEN}` } : {})
+    },
+    body: JSON.stringify({
+      resource,
+      readonly: true,
+      accountId: EASTMONEY_ACCOUNT_ID,
+      password: EASTMONEY_PASSWORD
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`东方财富只读接口请求失败：HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+app.get('/api/eastmoney/readonly', async (req, res) => {
+  try {
+    const resources = ['assets', 'positions', 'todayDeals', 'todayOrders'];
+    const results = await Promise.all(resources.map((resource) => eastMoneyReadonlyRequest(resource)));
+    const payload = Object.fromEntries(resources.map((resource, index) => [resource, results[index]]));
+    res.json({
+      ok: true,
+      readonly: true,
+      updatedAtChina: formatChinaTime(),
+      accountConfigured: Boolean(EASTMONEY_ACCOUNT_ID),
+      passwordConfigured: Boolean(EASTMONEY_PASSWORD),
+      readonlyUrlConfigured: Boolean(EASTMONEY_READONLY_URL),
+      assets: payload.assets?.rows ?? payload.assets?.data ?? [],
+      positions: payload.positions?.rows ?? payload.positions?.data ?? [],
+      todayDeals: payload.todayDeals?.rows ?? payload.todayDeals?.data ?? [],
+      todayOrders: payload.todayOrders?.rows ?? payload.todayOrders?.data ?? [],
+      messages: results.map((item) => item?.message).filter(Boolean)
+    });
+  } catch (error) {
+    res.status(502).json({
+      ok: false,
+      readonly: true,
+      message: error.message || '东方财富只读数据读取失败',
+      assets: [],
+      positions: [],
+      todayDeals: [],
+      todayOrders: []
+    });
+  }
 });
 
 app.get('/api/snapshot', (req, res) => {
