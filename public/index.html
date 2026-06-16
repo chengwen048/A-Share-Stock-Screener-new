@@ -16,14 +16,12 @@
           <p>全市场筛选，交易日校准，历史缓存只增量补充。</p>
         </div>
         <nav class="toc-list">
-          <a href="#manual-portfolio" class="toc-link active">手动持仓</a>
-          <a href="#conditions" class="toc-link">筛选条件</a>
+          <a href="#conditions" class="toc-link active">筛选条件</a>
           <a href="#matches" class="toc-link">命中结果</a>
           <a href="#near-misses" class="toc-link">接近命中</a>
           <a href="#stockDetailSection" class="toc-link">计算明细</a>
-          <a href="#basic-data" class="toc-link">基本数据</a>
           <a href="#watchlist" class="toc-link">待观察</a>
-          <a href="#openclaw" class="toc-link">openclaw</a>
+          <a href="#basic-data" class="toc-link">基本数据</a>
         </nav>
         <div class="side-footer">
           <span>数据源</span>
@@ -32,70 +30,6 @@
       </aside>
 
       <section class="content-area">
-        <section class="table-section panel-block" id="manual-portfolio">
-          <div class="section-heading">
-            <div>
-              <span class="section-tag">Manual Portfolio</span>
-              <h2>手动持仓 + 自动行情估值</h2>
-            </div>
-            <span id="manualPortfolioNote">手动录入代码、数量、成本价；使用最新缓存行情自动估值</span>
-          </div>
-          <section class="status-board compact-status" aria-live="polite">
-            <div>
-              <span>持仓数量</span>
-              <strong id="manualPositionCount">0</strong>
-            </div>
-            <div>
-              <span>总成本</span>
-              <strong id="manualTotalCost">-</strong>
-            </div>
-            <div>
-              <span>当前市值</span>
-              <strong id="manualMarketValue">-</strong>
-            </div>
-            <div>
-              <span>浮动盈亏</span>
-              <strong id="manualProfitLoss">-</strong>
-            </div>
-          </section>
-          <div class="basic-toolbar manual-toolbar">
-            <label>
-              股票代码
-              <input id="manualCodeInput" type="text" placeholder="例如 000001.SZ" />
-            </label>
-            <label>
-              持仓数量
-              <input id="manualSharesInput" type="number" min="0" step="100" placeholder="股数" />
-            </label>
-            <label>
-              成本价
-              <input id="manualCostInput" type="number" min="0" step="0.01" placeholder="每股成本" />
-            </label>
-            <button id="addManualPositionButton" type="button" class="secondary">加入持仓</button>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>代码</th>
-                  <th>名称</th>
-                  <th>数量</th>
-                  <th>成本价</th>
-                  <th>现价</th>
-                  <th>成本/市值</th>
-                  <th>盈亏</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="manualPortfolioBody">
-                <tr>
-                  <td colspan="8" class="empty">暂无手动持仓。</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
         <section class="topbar panel-block" id="overview">
           <div>
             <span class="section-tag">A-SHARE COMMAND CENTER</span>
@@ -346,23 +280,6 @@
                 </tr>
               </tbody>
             </table>
-          </div>
-        </section>
-
-        <section class="table-section panel-block" id="openclaw">
-          <div class="section-heading">
-            <div>
-              <span class="section-tag">OpenClaw</span>
-              <h2>openclaw</h2>
-            </div>
-            <span id="openclawStatus">可通过后端环境变量 OPENCLAW_URL 接入独立部署地址</span>
-          </div>
-          <div class="openclaw-panel">
-            <div>
-              <strong>部署状态</strong>
-              <span id="openclawUrlText">未配置 OPENCLAW_URL</span>
-            </div>
-            <a id="openclawLink" class="openclaw-link" href="#" target="_blank" rel="noreferrer" hidden>打开 openclaw</a>
           </div>
         </section>
       </section>

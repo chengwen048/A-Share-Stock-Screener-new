@@ -22,7 +22,6 @@ const EASTMONEY_ACCOUNT_ID = process.env.EASTMONEY_ACCOUNT_ID || '';
 const EASTMONEY_PASSWORD = process.env.EASTMONEY_PASSWORD || '';
 const EASTMONEY_READONLY_URL = process.env.EASTMONEY_READONLY_URL || '';
 const EASTMONEY_READONLY_TOKEN = process.env.EASTMONEY_READONLY_TOKEN || '';
-const OPENCLAW_URL = process.env.OPENCLAW_URL || '';
 const DATA_DIR = path.join(__dirname, '..', 'data', 'tushare');
 const CACHE_DIRS = {
   daily: path.join(DATA_DIR, 'daily'),
@@ -1535,15 +1534,6 @@ app.get('/api/eastmoney/status', (req, res) => {
     message: accountConfigured && passwordConfigured && readonlyUrlConfigured
       ? '只读接口环境变量已配置，可读取资产、持仓、当日成交、当日委托'
       : '请在后端环境变量配置 EASTMONEY_ACCOUNT_ID、EASTMONEY_PASSWORD、EASTMONEY_READONLY_URL；不要写入前端或提交到 GitHub'
-  });
-});
-
-app.get('/api/openclaw/status', (req, res) => {
-  res.json({
-    ok: true,
-    configured: Boolean(OPENCLAW_URL),
-    url: OPENCLAW_URL || null,
-    message: OPENCLAW_URL ? 'openclaw 地址已配置' : '请在环境变量 OPENCLAW_URL 中配置独立部署地址'
   });
 });
 

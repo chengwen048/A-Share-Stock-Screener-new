@@ -37,26 +37,13 @@ const klineMeta = document.querySelector('#klineMeta');
 const klineCanvas = document.querySelector('#klineCanvas');
 const klineStats = document.querySelector('#klineStats');
 const closeKlineButton = document.querySelector('#closeKlineButton');
-const manualPositionCount = document.querySelector('#manualPositionCount');
-const manualTotalCost = document.querySelector('#manualTotalCost');
-const manualMarketValue = document.querySelector('#manualMarketValue');
-const manualProfitLoss = document.querySelector('#manualProfitLoss');
-const manualCodeInput = document.querySelector('#manualCodeInput');
-const manualSharesInput = document.querySelector('#manualSharesInput');
-const manualCostInput = document.querySelector('#manualCostInput');
-const addManualPositionButton = document.querySelector('#addManualPositionButton');
-const manualPortfolioBody = document.querySelector('#manualPortfolioBody');
 const watchlistBody = document.querySelector('#watchlistBody');
 const watchlistNote = document.querySelector('#watchlistNote');
-const openclawStatus = document.querySelector('#openclawStatus');
-const openclawUrlText = document.querySelector('#openclawUrlText');
-const openclawLink = document.querySelector('#openclawLink');
 
 let conditionDefinitions = [];
 let browserDb = null;
 let basicDataRows = [];
 let watchlistRows = [];
-let manualPositions = [];
 let latestScreenRows = { results: [], nearMisses: [] };
 
 function formatChinaDateTime(value = new Date()) {
@@ -230,18 +217,6 @@ function loadWatchlist() {
   } catch (error) {
     watchlistRows = [];
   }
-}
-
-function loadManualPositions() {
-  try {
-    manualPositions = JSON.parse(localStorage.getItem('a-share-manual-positions') || '[]');
-  } catch (error) {
-    manualPositions = [];
-  }
-}
-
-function saveManualPositions() {
-  localStorage.setItem('a-share-manual-positions', JSON.stringify(manualPositions));
 }
 
 function saveWatchlist() {
@@ -686,102 +661,6 @@ function renderWatchlist() {
     .join('');
 }
 
-function findBasicRow(tsCode) {
-  const normalized = String(tsCode ?? '').trim().toUpperCase();
-  return basicDataRows.find((row) => row.ts_code === normalized || stockCode(row.stock) === normalized);
-}
-
-function enrichManualPosition(position) {
-  const basic = findBasicRow(position.tsCode);
-  const close = basic?.metrics?.close ?? null;
-  const shares = Number(position.shares);
-  const costPrice = Number(position.costPrice);
-  const totalCost = Number.isFinite(shares) && Number.isFinite(costPrice) ? shares * costPrice : null;
-  const marketValue = Number.isFinite(shares) && Number.isFinite(close) ? shares * close : null;
-  const profitLoss = Number.isFinite(totalCost) && Number.isFinite(marketValue) ? marketValue - totalCost : null;
-  const profitLossPct = Number.isFinite(profitLoss) && totalCost > 0 ? (profitLoss / totalCost) * 100 : null;
-  return {
-    ...position,
-    name: basic?.name ?? position.name ?? '-',
-    close,
-    totalCost,
-    marketValue,
-    profitLoss,
-    profitLossPct
-  };
-}
-
-function renderManualPortfolio() {
-  const enriched = manualPositions.map(enrichManualPosition);
-  const totalCost = enriched.reduce((sum, row) => sum + (Number.isFinite(row.totalCost) ? row.totalCost : 0), 0);
-  const marketValue = enriched.reduce((sum, row) => sum + (Number.isFinite(row.marketValue) ? row.marketValue : 0), 0);
-  const profitLoss = marketValue - totalCost;
-  manualPositionCount.textContent = `${manualPositions.length} 只`;
-  manualTotalCost.textContent = formatMoney(totalCost);
-  manualMarketValue.textContent = formatMoney(marketValue);
-  manualProfitLoss.textContent = `${formatMoney(profitLoss)} / ${totalCost > 0 ? `${formatNumber((profitLoss / totalCost) * 100)}%` : '-'}`;
-  manualProfitLoss.className = valueClass(profitLoss);
-
-  if (!manualPositions.length) {
-    manualPortfolioBody.innerHTML = emptyRow(8, '暂无手动持仓。');
-    return;
-  }
-
-  manualPortfolioBody.innerHTML = enriched
-    .map((row) => `<tr>
-      <td><span class="code">${escapeHtml(row.tsCode)}</span></td>
-      <td>${escapeHtml(row.name)}</td>
-      <td>${formatNumber(row.shares, 0)}</td>
-      <td>${formatNumber(row.costPrice)}</td>
-      <td>${formatNumber(row.close)}</td>
-      <td>
-        <div class="stack">
-          <span>成本 ${formatMoney(row.totalCost)}</span>
-          <span>市值 ${formatMoney(row.marketValue)}</span>
-        </div>
-      </td>
-      <td class="${valueClass(row.profitLoss)}">
-        <div class="stack">
-          <span>${formatMoney(row.profitLoss)}</span>
-          <span>${formatNumber(row.profitLossPct)}%</span>
-        </div>
-      </td>
-      <td><button type="button" class="detail-button secondary" data-manual-remove="${escapeHtml(row.tsCode)}">移除</button></td>
-    </tr>`)
-    .join('');
-}
-
-function addManualPosition() {
-  const tsCode = manualCodeInput.value.trim().toUpperCase();
-  const shares = Number(manualSharesInput.value);
-  const costPrice = Number(manualCostInput.value);
-  if (!tsCode || !Number.isFinite(shares) || shares <= 0 || !Number.isFinite(costPrice) || costPrice < 0) {
-    manualPortfolioBody.innerHTML = emptyRow(8, '请填写正确的股票代码、持仓数量和成本价。');
-    return;
-  }
-  const basic = findBasicRow(tsCode);
-  manualPositions = manualPositions.filter((row) => row.tsCode !== tsCode);
-  manualPositions.unshift({
-    tsCode,
-    shares,
-    costPrice,
-    name: basic?.name ?? '',
-    addedAt: new Date().toISOString(),
-    addedAtChina: formatChinaDateTime(new Date())
-  });
-  saveManualPositions();
-  renderManualPortfolio();
-  manualCodeInput.value = '';
-  manualSharesInput.value = '';
-  manualCostInput.value = '';
-}
-
-function removeManualPosition(tsCode) {
-  manualPositions = manualPositions.filter((row) => row.tsCode !== tsCode);
-  saveManualPositions();
-  renderManualPortfolio();
-}
-
 function addToWatchlist(tsCode, source) {
   const rows = [
     ...[...resultsBody.querySelectorAll('[data-watch-add]')].map((button) => button.dataset.watchAdd),
@@ -806,20 +685,6 @@ function addToWatchlist(tsCode, source) {
   });
   saveWatchlist();
   renderWatchlist();
-}
-
-async function loadOpenclawStatus() {
-  try {
-    const response = await fetch('/api/openclaw/status');
-    const payload = await response.json();
-    openclawStatus.textContent = payload.configured ? 'openclaw 已配置' : '未配置 OPENCLAW_URL';
-    openclawUrlText.textContent = payload.configured ? payload.url : '未配置 OPENCLAW_URL';
-    openclawLink.hidden = !payload.configured;
-    if (payload.configured) openclawLink.href = payload.url;
-  } catch (error) {
-    openclawStatus.textContent = 'openclaw 状态读取失败';
-    openclawUrlText.textContent = error.message;
-  }
 }
 
 function removeFromWatchlist(tsCode) {
@@ -933,7 +798,6 @@ async function loadBasicData() {
     if (!response.ok) throw new Error(payload.message || '基本数据加载失败');
     basicDataRows = payload.rows ?? [];
     renderBasicRows();
-    renderManualPortfolio();
   } catch (error) {
     basicDataNote.textContent = error.message;
     basicDataBody.innerHTML = emptyRow(9, error.message);
@@ -1137,9 +1001,6 @@ async function init() {
   setInterval(renderChinaClock, 1000);
   loadWatchlist();
   renderWatchlist();
-  loadManualPositions();
-  renderManualPortfolio();
-  loadOpenclawStatus();
   const response = await fetch('/api/conditions');
   const payload = await response.json();
   conditionDefinitions = payload.conditions ?? [];
@@ -1179,7 +1040,6 @@ basicSearchInput.addEventListener('input', renderBasicRows);
 basicLimitSelect.addEventListener('change', renderBasicRows);
 loadBasicDataButton.addEventListener('click', loadBasicData);
 closeKlineButton.addEventListener('click', closeKline);
-addManualPositionButton.addEventListener('click', addManualPosition);
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-stock-detail]');
   if (button) showStockDetail(button.dataset.stockDetail);
@@ -1189,8 +1049,6 @@ document.addEventListener('click', (event) => {
   if (addWatch) addToWatchlist(addWatch.dataset.watchAdd, addWatch.dataset.watchSource);
   const removeWatch = event.target.closest('[data-watch-remove]');
   if (removeWatch) removeFromWatchlist(removeWatch.dataset.watchRemove);
-  const removeManual = event.target.closest('[data-manual-remove]');
-  if (removeManual) removeManualPosition(removeManual.dataset.manualRemove);
   if (event.target === klinePanel) closeKline();
 });
 document.addEventListener('keydown', (event) => {
