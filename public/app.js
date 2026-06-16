@@ -403,7 +403,7 @@ function renderPayload(payload) {
     ? `已保存于 ${payload.browserCache.savedAtChina}`
     : '尚未保存';
   resultNote.textContent = payload.refreshJob?.running
-    ? `后台增量更新中，启动于 ${payload.refreshJob.startedAtChina}`
+    ? `后台增量更新中：${payload.refreshJob.phase ?? '处理中'}，启动于 ${payload.refreshJob.startedAtChina}`
     : dataStatus.state === 'degraded'
       ? `快照可继续使用，最后错误：${dataStatus.lastError ?? '未知'}`
       : `缓存内筛选，历史数据持续保留`;

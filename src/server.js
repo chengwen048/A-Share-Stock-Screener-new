@@ -191,6 +191,8 @@ let refreshJob = {
   error: null,
   lastErrorAt: null,
   lastErrorAtChina: null,
+  phase: null,
+  progress: null,
   promise: null
 };
 
@@ -460,6 +462,11 @@ async function getCachedDateRows(kind, tradeDate, fetcher) {
     rows
   });
   return rows;
+}
+
+function markRefreshProgress(phase, progress = null) {
+  refreshJob.phase = phase;
+  refreshJob.progress = progress;
 }
 
 async function getCachedMeta(key, fetcher) {
@@ -1010,23 +1017,37 @@ async function buildFullMarketRows(stockBasics, tradingDates, activeConditions) 
   let downloadedFlowDays = 0;
   const incompleteRows = [];
   const populatedDailyDates = [];
+  const emptyDailyDates = [];
 
-  for (const tradeDate of recentDates) {
+  for (const [index, tradeDate] of recentDates.entries()) {
+    markRefreshProgress('读取日线交易日缓存', {
+      tradeDate,
+      current: index + 1,
+      total: recentDates.length
+    });
     const dailyWasCached = Boolean(await readJsonFile(cacheFile('daily', tradeDate)));
     const dailyRows = await getDailyByTradeDate(tradeDate);
     if (!dailyWasCached) downloadedDailyDays += 1;
-    if (dailyRows.length > 0) populatedDailyDates.push(tradeDate);
+    if (dailyRows.length > 0) {
+      populatedDailyDates.push(tradeDate);
+    } else {
+      emptyDailyDates.push(tradeDate);
+      continue;
+    }
 
     for (const dailyRow of dailyRows) {
       const bucket = byCode.get(dailyRow.ts_code);
       if (!bucket) continue;
       bucket.bars.push(parseKlineRow(dailyRow));
     }
-    await delay(180);
+    if (!dailyWasCached) await delay(120);
   }
 
   const latestDataDate = populatedDailyDates.at(-1) ?? recentDates.at(-1);
   const latestDataIso = parseDateToIso(latestDataDate);
+  markRefreshProgress('读取最新交易日基础指标', {
+    latestDataDate
+  });
   const basicWasCached = Boolean(await readJsonFile(cacheFile('dailyBasic', latestDataDate)));
   const basicRows = await getDailyBasicByTradeDate(latestDataDate);
   if (!basicWasCached) downloadedBasicDays += 1;
@@ -1045,6 +1066,10 @@ async function buildFullMarketRows(stockBasics, tradingDates, activeConditions) 
     ? tradingDates.slice(Math.max(0, latestDataIndex - 1), latestDataIndex + 1)
     : tradingDates.slice(-2);
   for (const tradeDate of flowDates) {
+    markRefreshProgress('读取主力资金交易日缓存', {
+      tradeDate,
+      flowDates
+    });
     const flowWasCached = Boolean(await readJsonFile(cacheFile('moneyflow', tradeDate)));
     const flowRows = await getMoneyFlowByTradeDate(tradeDate);
     if (!flowWasCached) downloadedFlowDays += 1;
@@ -1053,11 +1078,16 @@ async function buildFullMarketRows(stockBasics, tradingDates, activeConditions) 
       if (!bucket) continue;
       bucket.flows.push(parseMoneyFlowRow(flowRow));
     }
-    await delay(180);
+    if (!flowWasCached) await delay(120);
   }
 
   const rows = [];
   const errors = [];
+  markRefreshProgress('计算全市场筛选指标', {
+    stockCount: byCode.size,
+    latestDataDate,
+    previousTradeDate: flowDates.at(0)
+  });
   for (const bucket of byCode.values()) {
     try {
       bucket.bars.sort((a, b) => a.date.localeCompare(b.date));
@@ -1083,6 +1113,9 @@ async function buildFullMarketRows(stockBasics, tradingDates, activeConditions) 
       calendarLatestTradeDateChina: formatTradeDateChina(recentDates.at(-1)),
       latestTradeDate: latestDataDate,
       latestTradeDateChina: formatTradeDateChina(latestDataDate),
+      previousTradeDate: flowDates.at(0) ?? null,
+      previousTradeDateChina: formatTradeDateChina(flowDates.at(0)),
+      emptyDailyDates,
       downloadedDailyDays,
       downloadedBasicDays,
       downloadedFlowDays,
@@ -1106,15 +1139,19 @@ async function refreshDataset({ force = false, reason = 'manual' } = {}) {
     error: null,
     lastErrorAt: refreshJob.lastErrorAt ?? null,
     lastErrorAtChina: refreshJob.lastErrorAtChina ?? null,
+    phase: '准备更新',
+    progress: null,
     promise: null
   };
 
   refreshJob.promise = (async () => {
     try {
       await ensureCacheDirs();
+      markRefreshProgress('读取交易日历');
       const tradingDates = await getTradingDates();
       const endDate = tradingDates.at(-1);
       if (!endDate) throw new Error('未获取到交易日');
+      markRefreshProgress('读取 A 股股票列表');
       const stockBasics = await getStockBasics();
       const activeConditions = normalizeConditions();
       const total = stockBasics.length;
@@ -1148,6 +1185,10 @@ async function refreshDataset({ force = false, reason = 'manual' } = {}) {
       refreshJob.finishedAt = datasetCache.updatedAt;
       refreshJob.finishedAtChina = datasetCache.updatedAtChina;
       refreshJob.error = null;
+      markRefreshProgress('更新完成', {
+        latestTradeDate: localCache.latestTradeDate,
+        calendarLatestTradeDate: localCache.calendarLatestTradeDate
+      });
       return datasetCache;
     } catch (error) {
       refreshJob.error = error.message || '更新失败';
