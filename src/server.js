@@ -1265,7 +1265,7 @@ app.get('/api/stock/:tsCode/detail', async (req, res) => {
 
     const tradingDates = await getTradingDates();
     const recentDates = tradingDates.slice(-260);
-    const bars = await getDailyRowsForStockFromDateCache(tsCode, recentDates);
+    const bars = await getDailyBars(tsCode, recentDates.at(0), recentDates.at(-1));
     if (!bars.length) {
       res.status(404).json({ message: `${tsCode} 没有可用日线数据` });
       return;
@@ -1276,7 +1276,8 @@ app.get('/api/stock/:tsCode/detail', async (req, res) => {
     const flowDates = latestIndex >= 1
       ? tradingDates.slice(Math.max(0, latestIndex - 1), latestIndex + 1)
       : tradingDates.slice(-2);
-    const rawFlows = await getMoneyFlowRawForStockFromDateCache(tsCode, flowDates);
+    const rawFlows = (await getMoneyFlowRawForStock(tsCode, flowDates.at(0), flowDates.at(-1)))
+      .filter((row) => flowDates.includes(String(row.trade_date)));
     const parsedFlows = rawFlows.map(parseMoneyFlowRow);
     const evaluated = evaluateStock(stock, bars, parsedFlows, normalizeConditions());
 
