@@ -10,13 +10,15 @@
     <main class="app-shell">
       <aside class="side-nav" aria-label="页面目录">
         <div class="brand-block">
-          <span class="brand-kicker">A-SHARE SCANNER</span>
+          <span class="brand-logo">A股</span>
+          <span class="brand-kicker">A-SHARE</span>
           <h1>A 股股票筛选平台</h1>
           <p>全市场筛选，交易日校准，历史缓存只增量补充。</p>
         </div>
         <nav class="toc-list">
           <a href="#overview" class="toc-link active">总览</a>
           <a href="#conditions" class="toc-link">筛选条件</a>
+          <a href="#basic-data" class="toc-link">基本数据</a>
           <a href="#matches" class="toc-link">命中结果</a>
           <a href="#near-misses" class="toc-link">接近命中</a>
           <a href="#stockDetailSection" class="toc-link">计算明细</a>
@@ -31,7 +33,7 @@
       <section class="content-area">
         <section class="topbar panel-block" id="overview">
           <div>
-            <span class="section-tag">实时状态</span>
+            <span class="section-tag">A-SHARE COMMAND CENTER</span>
             <h2>全 A 股筛选工作台</h2>
             <p>默认检索全部 A 股；周末和节假日按 Tushare 交易日历跳过，缓存历史数据只增量更新。</p>
           </div>
@@ -47,8 +49,8 @@
             <strong id="stockDataDate">等待数据</strong>
           </div>
           <div class="metric">
-            <span>系统更新时间（中国时间）</span>
-            <strong id="updatedAt">等待更新</strong>
+            <span>中国实时钟</span>
+            <strong id="chinaClock">--:--:--</strong>
           </div>
           <div class="metric">
             <span>命中股票</span>
@@ -87,6 +89,7 @@
           <span id="browserSnapshotStatus">等待写入</span>
           <span id="browserSnapshotCount">0</span>
           <span id="sourceText">-</span>
+          <span id="updatedAt">等待更新</span>
         </div>
 
         <section class="rule-panel panel-block" id="conditions">
@@ -98,6 +101,65 @@
             <span>勾选后点击应用筛选，缺失字段按不符合处理</span>
           </div>
           <div id="conditionList" class="condition-grid"></div>
+        </section>
+
+        <section class="table-section panel-block" id="basic-data">
+          <div class="section-heading">
+            <div>
+              <span class="section-tag">Market Data</span>
+              <h2>基本数据</h2>
+            </div>
+            <span id="basicDataNote">按股票代码排序，点击“看K线”查看图表</span>
+          </div>
+          <div class="basic-toolbar">
+            <label>
+              搜索股票
+              <input id="basicSearchInput" type="search" placeholder="输入代码或名称" />
+            </label>
+            <label>
+              显示数量
+              <select id="basicLimitSelect">
+                <option value="100">前 100 只</option>
+                <option value="300">前 300 只</option>
+                <option value="800">前 800 只</option>
+                <option value="99999">全部</option>
+              </select>
+            </label>
+            <button id="loadBasicDataButton" type="button" class="secondary">刷新基本数据</button>
+          </div>
+          <div class="chart-panel" id="klinePanel" hidden>
+            <div class="section-heading compact-heading">
+              <div>
+                <span class="section-tag">K-Line</span>
+                <h2 id="klineTitle">K 线图</h2>
+              </div>
+              <span id="klineMeta">点击股票后显示</span>
+            </div>
+            <canvas id="klineCanvas" width="1100" height="420" aria-label="股票K线图"></canvas>
+            <div id="klineStats" class="mini-stat-grid"></div>
+          </div>
+          <div class="table-wrap">
+            <table class="basic-table">
+              <thead>
+                <tr>
+                  <th>代码</th>
+                  <th>名称</th>
+                  <th>地区/行业</th>
+                  <th>市场</th>
+                  <th>收盘/涨跌幅</th>
+                  <th>成交额/换手</th>
+                  <th>市值</th>
+                  <th>均线</th>
+                  <th>K线</th>
+                </tr>
+              </thead>
+              <tbody id="basicDataBody">
+                <tr>
+                  <td colspan="9" class="empty">正在准备基本数据。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section class="table-section panel-block" id="matches">

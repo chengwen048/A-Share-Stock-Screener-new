@@ -25,9 +25,21 @@ const conditionList = document.querySelector('#conditionList');
 const stockDetailSection = document.querySelector('#stockDetailSection');
 const stockDetailTitle = document.querySelector('#stockDetailTitle');
 const stockDetailBody = document.querySelector('#stockDetailBody');
+const chinaClock = document.querySelector('#chinaClock');
+const basicDataNote = document.querySelector('#basicDataNote');
+const basicSearchInput = document.querySelector('#basicSearchInput');
+const basicLimitSelect = document.querySelector('#basicLimitSelect');
+const loadBasicDataButton = document.querySelector('#loadBasicDataButton');
+const basicDataBody = document.querySelector('#basicDataBody');
+const klinePanel = document.querySelector('#klinePanel');
+const klineTitle = document.querySelector('#klineTitle');
+const klineMeta = document.querySelector('#klineMeta');
+const klineCanvas = document.querySelector('#klineCanvas');
+const klineStats = document.querySelector('#klineStats');
 
 let conditionDefinitions = [];
 let browserDb = null;
+let basicDataRows = [];
 
 function formatChinaDateTime(value = new Date()) {
   return new Intl.DateTimeFormat('zh-CN', {
@@ -40,6 +52,10 @@ function formatChinaDateTime(value = new Date()) {
     second: '2-digit',
     hour12: false
   }).format(new Date(value));
+}
+
+function renderChinaClock() {
+  if (chinaClock) chinaClock.textContent = formatChinaDateTime(new Date());
 }
 
 function openBrowserCache() {
@@ -182,6 +198,10 @@ function detailButton(stock) {
   return `<button type="button" class="detail-button" data-stock-detail="${stockCode(stock)}">查看计算</button>`;
 }
 
+function klineButton(stock) {
+  return `<button type="button" class="detail-button" data-stock-kline="${stockCode(stock)}">看K线</button>`;
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -208,6 +228,15 @@ function renderMiniStats(items) {
       </div>`)
       .join('')}
   </div>`;
+}
+
+function renderMiniStatItems(items) {
+  return items
+    .map((item) => `<div class="mini-stat">
+      <span>${escapeHtml(item.label)}</span>
+      <strong class="${item.className ?? ''}">${escapeHtml(item.value)}</strong>
+    </div>`)
+    .join('');
 }
 
 function conditionLabel(key) {
@@ -617,6 +646,176 @@ function renderIncomplete(rows) {
     .join('');
 }
 
+function renderBasicRows() {
+  const keyword = basicSearchInput.value.trim().toLowerCase();
+  const limit = Number(basicLimitSelect.value);
+  const filtered = basicDataRows
+    .filter((row) => {
+      if (!keyword) return true;
+      return `${row.ts_code ?? ''} ${row.name ?? ''} ${row.industry ?? ''}`.toLowerCase().includes(keyword);
+    })
+    .slice(0, limit);
+
+  basicDataNote.textContent = `共 ${basicDataRows.length} 只，当前显示 ${filtered.length} 只`;
+  if (!filtered.length) {
+    basicDataBody.innerHTML = emptyRow(9, '没有匹配的股票。');
+    return;
+  }
+
+  basicDataBody.innerHTML = filtered
+    .map(({ stock, metrics }) => `<tr>
+      <td><span class="code">${stockCode(stock)}</span></td>
+      <td>
+        <div class="stack">
+          <strong>${escapeHtml(stock.name)}</strong>
+          <span class="muted">上市 ${escapeHtml(formatTradeDateChina(stock.list_date) || '-')}</span>
+        </div>
+      </td>
+      <td>
+        <div class="stack">
+          <span>${escapeHtml(stock.area ?? '-')}</span>
+          <span class="muted">${escapeHtml(stock.industry ?? '-')}</span>
+        </div>
+      </td>
+      <td>${escapeHtml(stock.market ?? stock.exchangeName ?? '-')}</td>
+      <td>
+        <div class="stack">
+          <strong>${formatNumber(metrics.close)}</strong>
+          <span class="${valueClass(metrics.pctChange)}">${formatNumber(metrics.pctChange)}%</span>
+        </div>
+      </td>
+      <td>
+        <div class="stack">
+          <span>${formatMoney(metrics.amount)}</span>
+          <span class="muted">换手 ${formatNumber(metrics.turnover)}%</span>
+        </div>
+      </td>
+      <td>
+        <div class="stack">
+          <span>总 ${formatMoney(metrics.marketCap)}</span>
+          <span class="muted">流通 ${formatMoney(metrics.floatMarketCap)}</span>
+        </div>
+      </td>
+      <td>
+        <div class="stack">
+          <span>MA20 ${formatNumber(metrics.ma20)}</span>
+          <span class="muted">MA60 ${formatNumber(metrics.ma60)} / MA250 ${formatNumber(metrics.ma250)}</span>
+        </div>
+      </td>
+      <td>${klineButton(stock)}</td>
+    </tr>`)
+    .join('');
+}
+
+async function loadBasicData() {
+  loadBasicDataButton.disabled = true;
+  loadBasicDataButton.textContent = '读取中...';
+  try {
+    const response = await fetch('/api/basic-data');
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.message || '基本数据加载失败');
+    basicDataRows = payload.rows ?? [];
+    renderBasicRows();
+  } catch (error) {
+    basicDataNote.textContent = error.message;
+    basicDataBody.innerHTML = emptyRow(9, error.message);
+  } finally {
+    loadBasicDataButton.disabled = false;
+    loadBasicDataButton.textContent = '刷新基本数据';
+  }
+}
+
+function drawKlineChart(bars) {
+  const ctx = klineCanvas.getContext('2d');
+  const width = klineCanvas.width;
+  const height = klineCanvas.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#080c25';
+  ctx.fillRect(0, 0, width, height);
+  if (!bars.length) return;
+
+  const padding = { left: 54, right: 22, top: 24, bottom: 44 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const visibleBars = bars.slice(-120);
+  const highs = visibleBars.map((bar) => Number(bar.high)).filter(Number.isFinite);
+  const lows = visibleBars.map((bar) => Number(bar.low)).filter(Number.isFinite);
+  const maxPrice = Math.max(...highs);
+  const minPrice = Math.min(...lows);
+  const priceRange = maxPrice - minPrice || 1;
+  const xStep = chartWidth / visibleBars.length;
+  const candleWidth = Math.max(3, Math.min(9, xStep * 0.58));
+  const y = (price) => padding.top + ((maxPrice - price) / priceRange) * chartHeight;
+
+  ctx.strokeStyle = 'rgba(97, 217, 255, 0.16)';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = 'rgba(197, 212, 246, 0.72)';
+  ctx.font = '12px system-ui';
+  for (let i = 0; i <= 4; i += 1) {
+    const yy = padding.top + (chartHeight / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, yy);
+    ctx.lineTo(width - padding.right, yy);
+    ctx.stroke();
+    const price = maxPrice - (priceRange / 4) * i;
+    ctx.fillText(formatNumber(price), 8, yy + 4);
+  }
+
+  visibleBars.forEach((bar, index) => {
+    const open = Number(bar.open);
+    const close = Number(bar.close);
+    const high = Number(bar.high);
+    const low = Number(bar.low);
+    if (![open, close, high, low].every(Number.isFinite)) return;
+    const x = padding.left + index * xStep + xStep / 2;
+    const isUp = close >= open;
+    const color = isUp ? '#ff6f91' : '#76ffb5';
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y(high));
+    ctx.lineTo(x, y(low));
+    ctx.stroke();
+    const bodyTop = y(Math.max(open, close));
+    const bodyHeight = Math.max(2, Math.abs(y(open) - y(close)));
+    ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+  });
+
+  ctx.fillStyle = 'rgba(197, 212, 246, 0.78)';
+  const first = visibleBars[0]?.tradeDateChina ?? '';
+  const last = visibleBars.at(-1)?.tradeDateChina ?? '';
+  ctx.fillText(first, padding.left, height - 16);
+  ctx.fillText(last, width - padding.right - 106, height - 16);
+}
+
+async function showKline(tsCode) {
+  klinePanel.hidden = false;
+  klineTitle.textContent = `${tsCode} K 线加载中...`;
+  klineMeta.textContent = '正在读取最近交易日 K 线';
+  try {
+    const response = await fetch(`/api/stock/${encodeURIComponent(tsCode)}/kline`);
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.message || 'K线加载失败');
+    const bars = payload.bars ?? [];
+    const latest = bars.at(-1) ?? {};
+    klineTitle.textContent = `${payload.stock.name} ${payload.stock.ts_code}`;
+    klineMeta.textContent = `${bars[0]?.tradeDateChina ?? '-'} 至 ${latest.tradeDateChina ?? '-'}，共 ${bars.length} 根K线`;
+    drawKlineChart(bars);
+    klineStats.innerHTML = renderMiniStatItems([
+      { label: '最新交易日', value: latest.tradeDateChina ?? '-' },
+      { label: '收盘价', value: formatNumber(latest.close) },
+      { label: '涨跌幅', value: `${formatNumber(latest.pctChange)}%`, className: valueClass(latest.pctChange) },
+      { label: '最高 / 最低', value: `${formatNumber(latest.high)} / ${formatNumber(latest.low)}` },
+      { label: '成交量', value: formatNumber(latest.volume, 0) },
+      { label: '成交额', value: formatMoney(latest.amount) }
+    ]);
+    klinePanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (error) {
+    klineTitle.textContent = `${tsCode} K 线加载失败`;
+    klineMeta.textContent = error.message;
+  }
+}
+
 function renderPayload(payload) {
   const cache = payload.localCache;
   const dataStatus = payload.dataStatus ?? {};
@@ -709,6 +908,8 @@ async function refreshData() {
 }
 
 async function init() {
+  renderChinaClock();
+  setInterval(renderChinaClock, 1000);
   const response = await fetch('/api/conditions');
   const payload = await response.json();
   conditionDefinitions = payload.conditions ?? [];
@@ -736,6 +937,7 @@ async function init() {
     browserCacheStatus.textContent = '服务端快照同步失败';
   }
   await applyScreen();
+  await loadBasicData();
 }
 
 applyButton.addEventListener('click', applyScreen);
@@ -743,9 +945,14 @@ refreshButton.addEventListener('click', refreshData);
 conditionList.addEventListener('change', () => {
   activeConditionCount.textContent = `${selectedConditions().filter((condition) => condition.enabled).length} 个`;
 });
+basicSearchInput.addEventListener('input', renderBasicRows);
+basicLimitSelect.addEventListener('change', renderBasicRows);
+loadBasicDataButton.addEventListener('click', loadBasicData);
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-stock-detail]');
   if (button) showStockDetail(button.dataset.stockDetail);
+  const kline = event.target.closest('[data-stock-kline]');
+  if (kline) showKline(kline.dataset.stockKline);
 });
 
 document.querySelectorAll('.toc-link').forEach((link) => {

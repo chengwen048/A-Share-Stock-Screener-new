@@ -1478,6 +1478,25 @@ function screenFromCache(activeConditions) {
   };
 }
 
+function basicDataRows() {
+  return (datasetCache?.rows ?? [])
+    .map(({ stock, metrics, passCount, failedKeys }) => ({
+      stock,
+      metrics,
+      passCount,
+      failedKeys,
+      ts_code: stock?.ts_code,
+      code: stock?.code,
+      name: stock?.name,
+      area: stock?.area,
+      industry: stock?.industry,
+      market: stock?.market,
+      exchangeName: stock?.exchangeName ?? stock?.exchange,
+      listDate: stock?.list_date
+    }))
+    .sort((a, b) => String(a.ts_code ?? '').localeCompare(String(b.ts_code ?? '')));
+}
+
 app.get('/api/conditions', (req, res) => {
   res.json({ conditions: conditionDefinitions });
 });
@@ -1513,6 +1532,60 @@ app.get('/api/snapshot', (req, res) => {
     dataStatus: buildDataStatus(),
     refreshJob
   });
+});
+
+app.get('/api/basic-data', (req, res) => {
+  if (!datasetCache) {
+    res.status(404).json({
+      ok: false,
+      message: '快照尚未加载',
+      rows: [],
+      dataStatus: buildDataStatus()
+    });
+    return;
+  }
+
+  res.json({
+    ok: true,
+    updatedAtChina: datasetCache.updatedAtChina ?? null,
+    localCache: datasetCache.localCache ?? null,
+    total: datasetCache.rows?.length ?? 0,
+    rows: basicDataRows(),
+    dataStatus: buildDataStatus()
+  });
+});
+
+app.get('/api/stock/:tsCode/kline', async (req, res) => {
+  try {
+    const tsCode = String(req.params.tsCode || '').toUpperCase();
+    const stock = (datasetCache?.rows ?? []).find((row) => row.stock?.ts_code === tsCode)?.stock
+      ?? (await getStockBasics()).find((row) => row.ts_code === tsCode);
+    if (!stock) {
+      res.status(404).json({ message: `未找到股票：${tsCode}` });
+      return;
+    }
+
+    const tradingDates = await getTradingDates();
+    const recentDates = tradingDates.slice(-260);
+    const bars = await getDailyBars(tsCode, recentDates.at(0), recentDates.at(-1));
+    res.json({
+      stock,
+      localCache: datasetCache?.localCache ?? null,
+      bars: bars.map((bar) => ({
+        tradeDate: isoToTradeDate(bar.date),
+        tradeDateChina: formatTradeDateChina(bar.date),
+        open: bar.open,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close,
+        volume: bar.volume,
+        amount: bar.amount,
+        pctChange: bar.pctChange
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'K线加载失败' });
+  }
 });
 
 app.get('/api/stock/:tsCode/detail', async (req, res) => {
