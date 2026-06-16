@@ -123,6 +123,15 @@ function browserCacheSummary(meta, snapshots = []) {
   };
 }
 
+function cacheDateRange(cache) {
+  if (!cache) return '等待数据';
+  const start = cache.earliestTradeDateChina ?? formatTradeDateChina(cache.earliestTradeDate);
+  const end = cache.latestTradeDateChina ?? formatTradeDateChina(cache.latestTradeDate);
+  if (start && end && start !== '-' && end !== '-') return `${start} 至 ${end}`;
+  if (end && end !== '-' && cache.historyDays) return `近 ${cache.historyDays} 个交易日，更新至 ${end}`;
+  return end && end !== '-' ? `更新至 ${end}` : '等待数据';
+}
+
 function formatNumber(value, digits = 2) {
   const number = Number(value);
   if (!Number.isFinite(number)) return '-';
@@ -258,27 +267,75 @@ function explainCondition(key, payload) {
   } else if (key === 'todayPctChangeMin') {
     row.formula = '判断今日涨跌幅是否达到你设置的下限。';
     row.values = [`今日涨跌幅 ${formatNumber(metrics.pctChange)}%`];
+  } else if (key === 'limitUpInLastTwoTradingDays') {
+    row.formula = '最近两个交易日内，只要有一天涨跌幅达到你设置的涨停阈值，就算通过。';
+    row.values = [
+      `今日涨跌幅 ${formatNumber(metrics.pctChange)}%`,
+      `上一交易日涨跌幅 ${formatNumber(metrics.yesterdayPctChange)}%`
+    ];
+  } else if (key === 'twoDayPriceRise') {
+    row.formula = '判断今日和上一交易日是否都上涨到你设置的幅度。';
+    row.values = [`今日 ${formatNumber(metrics.pctChange)}%`, `上一交易日 ${formatNumber(metrics.yesterdayPctChange)}%`];
+  } else if (key === 'twoDayTotalPctMin') {
+    row.formula = '把最近两个交易日的涨跌幅复合计算，判断累计涨幅是否达到下限。';
+    row.values = [`两日累计 ${formatNumber(metrics.twoDayPctChange)}%`];
+  } else if (key === 'todayAmplitudeRange') {
+    row.formula = '振幅 = (最高价 - 最低价) / 收盘价。';
+    row.values = [`今日振幅 ${formatNumber(metrics.todayAmplitudePct)}%`];
+  } else if (key === 'closeNearHigh') {
+    row.formula = '收盘位置越接近日内最高价，数值越高。';
+    row.values = [`收盘位置 ${formatNumber(metrics.todayClosePositionPct)}%`];
+  } else if (key === 'closeAboveOpen') {
+    row.formula = '判断今日收盘价是否高于开盘价。';
+    row.values = [`开盘 ${formatNumber(metrics.open)}`, `收盘 ${formatNumber(metrics.close)}`];
   } else if (key === 'priceRange') {
     row.formula = '判断收盘价是否在你设置的股价区间内。';
     row.values = [`收盘 ${formatNumber(metrics.close)}`];
   } else if (key === 'amountMin') {
     row.formula = '判断今日成交额是否达到你设置的下限。';
     row.values = [`成交额 ${formatMoney(metrics.amount)}`];
+  } else if (key === 'todayVolumeMultipleMin') {
+    row.formula = '判断今日20日均量比是否达到下限。';
+    row.values = [`今日20日均量比 ${formatNumber(metrics.todayVolumeMultiple20)} 倍`];
+  } else if (key === 'todayVolumeMultipleMax') {
+    row.formula = '判断今日量能是否没有过热。';
+    row.values = [`今日20日均量比 ${formatNumber(metrics.todayVolumeMultiple20)} 倍`];
   } else if (key === 'turnoverRange') {
     row.formula = '判断今日换手率是否在你设置的区间内。';
     row.values = [`换手率 ${formatNumber(metrics.turnover)}%`];
   } else if (key === 'mainMoneyRatioMin') {
     row.formula = '判断今日主力净流入占成交额的比例是否达到下限。';
     row.values = [`主力占比 ${formatNumber(metrics.todayMainMoneyRatio)}%`];
+  } else if (key === 'mainMoneyAmountMin') {
+    row.formula = '判断今日主力净流入金额是否达到下限。';
+    row.values = [`今日主力净流入 ${formatMoney(metrics.todayMainNetInflow)}`];
   } else if (key === 'twoDayMainMoneyAmountMin') {
     row.formula = '判断今日和上一交易日主力净流入金额是否都达到下限。';
     row.values = [`今日 ${formatMoney(metrics.todayMainNetInflow)}`, `上一交易日 ${formatMoney(metrics.yesterdayMainNetInflow)}`];
   } else if (key === 'floatMarketCapMax') {
     row.formula = '判断流通市值是否低于你设置的上限。';
     row.values = [`流通市值 ${formatMoney(metrics.floatMarketCap)}`];
+  } else if (key === 'marketCapRange') {
+    row.formula = '判断总市值是否在你设置的区间内。';
+    row.values = [`总市值 ${formatMoney(metrics.marketCap)}`];
   } else if (key === 'aboveMa20Pct') {
     row.formula = '判断收盘价相对 20 日均线的偏离幅度。';
     row.values = [`高于 MA20 ${formatNumber(metrics.closeVsMa20Pct)}%`];
+  } else if (key === 'aboveMa60Pct') {
+    row.formula = '判断收盘价相对 60 日均线的偏离幅度。';
+    row.values = [`高于 MA60 ${formatNumber(metrics.closeVsMa60Pct)}%`];
+  } else if (key === 'ma20SlopeUp') {
+    row.formula = '判断 MA20 是否比上一交易日 MA20 更高。';
+    row.values = [`MA20斜率 ${formatNumber(metrics.ma20SlopePct, 3)}%`];
+  } else if (key === 'ma60SlopeUp') {
+    row.formula = '判断 MA60 是否比上一交易日 MA60 更高。';
+    row.values = [`MA60斜率 ${formatNumber(metrics.ma60SlopePct, 3)}%`];
+  } else if (key === 'upperShadowMax') {
+    row.formula = '判断今日上影线比例是否不高。';
+    row.values = [`今日上影线 ${formatPercentRatio(metrics.todayUpperShadowRatio)}`];
+  } else if (key === 'lowerShadowMin') {
+    row.formula = '判断今日下影线比例是否较长。';
+    row.values = [`今日下影线 ${formatPercentRatio(metrics.todayLowerShadowRatio)}`];
   } else if (key === 'notSt') {
     row.formula = '排除名称中带 ST 的股票。';
     row.values = [`股票名称 ${payload.stock?.name ?? '-'}`];
@@ -375,8 +432,13 @@ function paramsToHtml(condition) {
             <option value="50000000"${param.value === 50000000 ? ' selected' : ''}>5000 万</option>
             <option value="100000000"${param.value === 100000000 ? ' selected' : ''}>1 亿</option>
             <option value="300000000"${param.value === 300000000 ? ' selected' : ''}>3 亿</option>
+            <option value="500000000"${param.value === 500000000 ? ' selected' : ''}>5 亿</option>
             <option value="1000000000"${param.value === 1000000000 ? ' selected' : ''}>10 亿</option>
+            <option value="3000000000"${param.value === 3000000000 ? ' selected' : ''}>30 亿</option>
+            <option value="5000000000"${param.value === 5000000000 ? ' selected' : ''}>50 亿</option>
+            <option value="10000000000"${param.value === 10000000000 ? ' selected' : ''}>100 亿</option>
             <option value="30000000000"${param.value === 30000000000 ? ' selected' : ''}>300 亿</option>
+            <option value="100000000000"${param.value === 100000000000 ? ' selected' : ''}>1000 亿</option>
           </select></label>`;
         }
         return `<label>${param.label}<input data-param="${param.key}" type="number" value="${param.value}" step="${param.step ?? 1}" /></label>`;
@@ -558,7 +620,7 @@ function renderIncomplete(rows) {
 function renderPayload(payload) {
   const cache = payload.localCache;
   const dataStatus = payload.dataStatus ?? {};
-  stockDataDate.textContent = cache?.latestTradeDateChina ?? formatTradeDateChina(cache?.latestTradeDate) ?? '等待数据';
+  stockDataDate.textContent = cacheDateRange(cache);
   updatedAt.textContent = payload.updatedAtChina ?? '正在更新';
   expiresAt.textContent = payload.expiresAtChina ?? '-';
   scannedCount.textContent = `${payload.evaluatedCount ?? 0} / ${payload.incompleteCount ?? 0} / ${payload.stockCount ?? payload.candidateCount ?? 0}`;
@@ -573,7 +635,7 @@ function renderPayload(payload) {
     : `兜底样本：${payload.stockCount ?? payload.candidateCount ?? 0} / ${payload.totalAshareCount ?? '-'} 只`;
   universeStatus.className = payload.universeComplete ? 'positive' : 'danger';
   localCacheStatus.textContent = cache
-    ? `更新至 ${cache.latestTradeDateChina ?? formatTradeDateChina(cache.latestTradeDate)}，${cache.historyDays} 日历史`
+    ? `${cacheDateRange(cache)}，${cache.historyDays} 个交易日`
     : '正在建立';
   dataStatusText.textContent = dataStatus.label
     ? `${dataStatus.label}${dataStatus.detail ? `｜${dataStatus.detail}` : ''}`

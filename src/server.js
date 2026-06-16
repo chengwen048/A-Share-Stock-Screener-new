@@ -82,6 +82,56 @@ const conditionDefinitions = [
     params: [{ key: 'min', label: '涨幅 >= %', type: 'number', value: 0, step: 0.1 }]
   },
   {
+    key: 'limitUpInLastTwoTradingDays',
+    label: '近两日出现涨停',
+    group: '行情扩展',
+    description: '最近两个交易日内，任意一天涨跌幅达到涨停阈值',
+    defaultEnabled: false,
+    params: [{ key: 'pctMin', label: '涨停阈值 >= %', type: 'number', value: 9.8, step: 0.1 }]
+  },
+  {
+    key: 'twoDayPriceRise',
+    label: '连续两日上涨',
+    group: '行情扩展',
+    description: '今日和上一交易日涨跌幅都大于指定值',
+    defaultEnabled: false,
+    params: [{ key: 'min', label: '每天涨幅 >= %', type: 'number', value: 0, step: 0.1 }]
+  },
+  {
+    key: 'twoDayTotalPctMin',
+    label: '两日累计涨幅',
+    group: '行情扩展',
+    description: '最近两个交易日累计涨跌幅不低于指定值',
+    defaultEnabled: false,
+    params: [{ key: 'min', label: '累计 >= %', type: 'number', value: 5, step: 0.1 }]
+  },
+  {
+    key: 'todayAmplitudeRange',
+    label: '今日振幅区间',
+    group: '行情扩展',
+    description: '今日振幅在指定范围内',
+    defaultEnabled: false,
+    params: [
+      { key: 'min', label: '最低%', type: 'number', value: 0, step: 0.1 },
+      { key: 'max', label: '最高%', type: 'number', value: 12, step: 0.1 }
+    ]
+  },
+  {
+    key: 'closeNearHigh',
+    label: '收盘接近日高',
+    group: '行情扩展',
+    description: '收盘价位于当日高低区间的较高位置',
+    defaultEnabled: false,
+    params: [{ key: 'min', label: '位置 >= %', type: 'number', value: 70, step: 1 }]
+  },
+  {
+    key: 'closeAboveOpen',
+    label: '今日收阳线',
+    group: '行情扩展',
+    description: '今日收盘价高于开盘价',
+    defaultEnabled: false
+  },
+  {
     key: 'marketScope',
     label: '市场范围',
     group: '行情扩展',
@@ -124,6 +174,22 @@ const conditionDefinitions = [
     params: [{ key: 'min', label: '至少', type: 'money', value: 100000000 }]
   },
   {
+    key: 'todayVolumeMultipleMin',
+    label: '今日20日均量比',
+    group: '量能扩展',
+    description: '今日成交量 / 今日之前20个交易日均量不低于指定倍数',
+    defaultEnabled: false,
+    params: [{ key: 'min', label: '至少倍数', type: 'number', value: 1.5, step: 0.1 }]
+  },
+  {
+    key: 'todayVolumeMultipleMax',
+    label: '今日量能不过热',
+    group: '量能扩展',
+    description: '今日20日均量比不高于指定倍数',
+    defaultEnabled: false,
+    params: [{ key: 'max', label: '不高于倍数', type: 'number', value: 3, step: 0.1 }]
+  },
+  {
     key: 'turnoverRange',
     label: '换手率区间',
     group: '行情扩展',
@@ -141,6 +207,14 @@ const conditionDefinitions = [
     description: '今日主力净流入 / 今日成交额不低于指定比例',
     defaultEnabled: false,
     params: [{ key: 'min', label: '占比 >= %', type: 'number', value: 1, step: 0.1 }]
+  },
+  {
+    key: 'mainMoneyAmountMin',
+    label: '今日主力金额下限',
+    group: '资金扩展',
+    description: '今日主力净流入金额不低于指定金额',
+    defaultEnabled: false,
+    params: [{ key: 'min', label: '至少', type: 'money', value: 10000000 }]
   },
   {
     key: 'twoDayMainMoneyAmountMin',
@@ -166,12 +240,63 @@ const conditionDefinitions = [
     params: [{ key: 'max', label: '不高于', type: 'money', value: 30000000000 }]
   },
   {
+    key: 'marketCapRange',
+    label: '总市值区间',
+    group: '风险过滤',
+    description: '总市值在指定范围内',
+    defaultEnabled: false,
+    params: [
+      { key: 'min', label: '不低于', type: 'money', value: 3000000000 },
+      { key: 'max', label: '不高于', type: 'money', value: 100000000000 }
+    ]
+  },
+  {
     key: 'aboveMa20Pct',
     label: '强于20日线',
     group: '行情扩展',
     description: '收盘价高于20日均线指定百分比',
     defaultEnabled: false,
     params: [{ key: 'min', label: '高于%', type: 'number', value: 3, step: 0.1 }]
+  },
+  {
+    key: 'aboveMa60Pct',
+    label: '强于60日线',
+    group: '趋势扩展',
+    description: '收盘价高于60日均线指定百分比',
+    defaultEnabled: false,
+    params: [{ key: 'min', label: '高于%', type: 'number', value: 0, step: 0.1 }]
+  },
+  {
+    key: 'ma20SlopeUp',
+    label: '20日线向上',
+    group: '趋势扩展',
+    description: '今日MA20相对上一交易日MA20上升',
+    defaultEnabled: false,
+    params: [{ key: 'min', label: '斜率 >= %', type: 'number', value: 0, step: 0.01 }]
+  },
+  {
+    key: 'ma60SlopeUp',
+    label: '60日线向上',
+    group: '趋势扩展',
+    description: '今日MA60相对上一交易日MA60上升',
+    defaultEnabled: false,
+    params: [{ key: 'min', label: '斜率 >= %', type: 'number', value: 0, step: 0.01 }]
+  },
+  {
+    key: 'upperShadowMax',
+    label: '今日上影线不长',
+    group: '形态扩展',
+    description: '今日上影线比例不高于指定值',
+    defaultEnabled: false,
+    params: [{ key: 'max', label: '比例 <=', type: 'number', value: 0.25, step: 0.01 }]
+  },
+  {
+    key: 'lowerShadowMin',
+    label: '今日下影线较长',
+    group: '形态扩展',
+    description: '今日下影线比例不低于指定值',
+    defaultEnabled: false,
+    params: [{ key: 'min', label: '比例 >=', type: 'number', value: 0.25, step: 0.01 }]
   }
 ];
 
@@ -280,6 +405,25 @@ function upperShadowRatio(row) {
   const range = row.high - row.low;
   if (!Number.isFinite(range) || range <= 0) return null;
   return (row.high - Math.max(row.open, row.close)) / range;
+}
+
+function lowerShadowRatio(row) {
+  if (!row) return null;
+  const range = row.high - row.low;
+  if (!Number.isFinite(range) || range <= 0) return null;
+  return (Math.min(row.open, row.close) - row.low) / range;
+}
+
+function amplitudePct(row) {
+  if (!row || !hasValue(row.close) || !hasValue(row.high) || !hasValue(row.low) || row.close <= 0) return null;
+  return ((row.high - row.low) / row.close) * 100;
+}
+
+function closePositionPct(row) {
+  if (!row || !hasValue(row.close) || !hasValue(row.high) || !hasValue(row.low)) return null;
+  const range = row.high - row.low;
+  if (range <= 0) return null;
+  return ((row.close - row.low) / range) * 100;
 }
 
 function percentFromAmount(value, precision = 2) {
@@ -828,6 +972,8 @@ function evaluateStock(row, bars, flows, activeConditions) {
   const ma20 = movingAverage(bars, lastIndex, 20);
   const ma60 = movingAverage(bars, lastIndex, 60);
   const ma250 = movingAverage(bars, lastIndex, 250);
+  const previousMa20 = movingAverage(bars, prevIndex, 20);
+  const previousMa60 = movingAverage(bars, prevIndex, 60);
   const todayAvgVolume20 = previousAverageVolume(bars, lastIndex);
   const yesterdayAvgVolume20 = previousAverageVolume(bars, prevIndex);
   const volumeCv20BeforeBreakout = previousVolumeCv(bars, prevIndex);
@@ -835,6 +981,9 @@ function evaluateStock(row, bars, flows, activeConditions) {
   const yesterdayVolumeRatio = yesterdayAvgVolume20 ? yesterday.volume / yesterdayAvgVolume20 : null;
   const todayUpperShadowRatio = upperShadowRatio(today);
   const yesterdayUpperShadowRatio = upperShadowRatio(yesterday);
+  const todayLowerShadowRatio = lowerShadowRatio(today);
+  const todayAmplitudePct = amplitudePct(today);
+  const todayClosePositionPct = closePositionPct(today);
   const flowByDate = new Map(flows.map((flow) => [flow.date, flow]));
   const todayFlow = today ? flowByDate.get(today.date) ?? null : null;
   const yesterdayFlow = yesterday ? flowByDate.get(yesterday.date) ?? null : null;
@@ -852,6 +1001,7 @@ function evaluateStock(row, bars, flows, activeConditions) {
   const metrics = {
     tradeDate: today?.date ?? null,
     previousTradeDate: yesterday?.date ?? null,
+    open: today?.open ?? null,
     close: today?.close ?? null,
     pctChange: today?.pctChange ?? null,
     amount: todayAmount,
@@ -863,6 +1013,9 @@ function evaluateStock(row, bars, flows, activeConditions) {
     ma250,
     closeVsMa250Pct: hasValue(ma250) && hasValue(today?.close) ? ((today.close - ma250) / ma250) * 100 : null,
     closeVsMa20Pct: hasValue(ma20) && hasValue(today?.close) ? ((today.close - ma20) / ma20) * 100 : null,
+    closeVsMa60Pct: hasValue(ma60) && hasValue(today?.close) ? ((today.close - ma60) / ma60) * 100 : null,
+    ma20SlopePct: hasValue(ma20) && hasValue(previousMa20) && previousMa20 !== 0 ? ((ma20 - previousMa20) / previousMa20) * 100 : null,
+    ma60SlopePct: hasValue(ma60) && hasValue(previousMa60) && previousMa60 !== 0 ? ((ma60 - previousMa60) / previousMa60) * 100 : null,
     volumeCv20BeforeBreakout,
     todayVolumeRatio,
     todayVolumeMultiple20: todayVolumeRatio,
@@ -871,11 +1024,22 @@ function evaluateStock(row, bars, flows, activeConditions) {
     quoteVolumeRatio,
     todayUpperShadowRatio,
     yesterdayUpperShadowRatio,
+    todayLowerShadowRatio,
+    todayAmplitudePct,
+    todayClosePositionPct,
     todayMainNetInflow,
     yesterdayMainNetInflow,
     todayMainMoneyRatio: hasValue(todayAmount) && hasValue(todayMainNetInflow) ? (todayMainNetInflow / todayAmount) * 100 : null,
     todayVolume: today?.volume ?? null,
     yesterdayVolume: yesterday?.volume ?? null,
+    yesterdayPctChange: yesterday?.pctChange ?? null,
+    twoDayPctChange: hasValue(today?.pctChange) && hasValue(yesterday?.pctChange)
+      ? ((1 + today.pctChange / 100) * (1 + yesterday.pctChange / 100) - 1) * 100
+      : null,
+    limitUpInLastTwoTradingDays: (
+      (hasValue(today?.pctChange) && today.pctChange >= 9.8) ||
+      (hasValue(yesterday?.pctChange) && yesterday.pctChange >= 9.8)
+    ),
     marketCap,
     floatMarketCap
   };
@@ -949,6 +1113,28 @@ function runCondition(condition, rowOrBundle) {
         metrics.todayMainNetInflow > 0 && metrics.yesterdayMainNetInflow > 0;
     case 'todayPctChangeMin':
       return hasValue(metrics.pctChange) && metrics.pctChange >= getParam(condition, 'min');
+    case 'limitUpInLastTwoTradingDays':
+      return (
+        (hasValue(metrics.pctChange) && metrics.pctChange >= getParam(condition, 'pctMin')) ||
+        (hasValue(metrics.yesterdayPctChange) && metrics.yesterdayPctChange >= getParam(condition, 'pctMin'))
+      );
+    case 'twoDayPriceRise':
+      return (
+        hasValue(metrics.pctChange) &&
+        hasValue(metrics.yesterdayPctChange) &&
+        metrics.pctChange >= getParam(condition, 'min') &&
+        metrics.yesterdayPctChange >= getParam(condition, 'min')
+      );
+    case 'twoDayTotalPctMin':
+      return hasValue(metrics.twoDayPctChange) && metrics.twoDayPctChange >= getParam(condition, 'min');
+    case 'todayAmplitudeRange':
+      return hasValue(metrics.todayAmplitudePct) &&
+        metrics.todayAmplitudePct >= getParam(condition, 'min') &&
+        metrics.todayAmplitudePct <= getParam(condition, 'max');
+    case 'closeNearHigh':
+      return hasValue(metrics.todayClosePositionPct) && metrics.todayClosePositionPct >= getParam(condition, 'min');
+    case 'closeAboveOpen':
+      return hasValue(metrics.close) && hasValue(metrics.open) && metrics.close > metrics.open;
     case 'marketScope': {
       const scope = condition.params?.scope ?? 'ALL';
       return marketScopeMatch(scope, stock);
@@ -957,10 +1143,16 @@ function runCondition(condition, rowOrBundle) {
       return hasValue(metrics.close) && metrics.close >= getParam(condition, 'min') && metrics.close <= getParam(condition, 'max');
     case 'amountMin':
       return hasValue(metrics.amount) && metrics.amount >= getParam(condition, 'min');
+    case 'todayVolumeMultipleMin':
+      return hasValue(todayVolumeMultiple20) && todayVolumeMultiple20 >= getParam(condition, 'min');
+    case 'todayVolumeMultipleMax':
+      return hasValue(todayVolumeMultiple20) && todayVolumeMultiple20 <= getParam(condition, 'max');
     case 'turnoverRange':
       return hasValue(metrics.turnover) && metrics.turnover >= getParam(condition, 'min') && metrics.turnover <= getParam(condition, 'max');
     case 'mainMoneyRatioMin':
       return hasValue(metrics.todayMainMoneyRatio) && metrics.todayMainMoneyRatio >= getParam(condition, 'min');
+    case 'mainMoneyAmountMin':
+      return hasValue(metrics.todayMainNetInflow) && metrics.todayMainNetInflow >= getParam(condition, 'min');
     case 'twoDayMainMoneyAmountMin':
       return (
         hasValue(metrics.todayMainNetInflow) &&
@@ -972,8 +1164,20 @@ function runCondition(condition, rowOrBundle) {
       return !/ST/i.test(name);
     case 'floatMarketCapMax':
       return hasValue(metrics.floatMarketCap) && metrics.floatMarketCap <= getParam(condition, 'max');
+    case 'marketCapRange':
+      return hasValue(metrics.marketCap) && metrics.marketCap >= getParam(condition, 'min') && metrics.marketCap <= getParam(condition, 'max');
     case 'aboveMa20Pct':
       return hasValue(metrics.closeVsMa20Pct) && metrics.closeVsMa20Pct >= getParam(condition, 'min');
+    case 'aboveMa60Pct':
+      return hasValue(metrics.closeVsMa60Pct) && metrics.closeVsMa60Pct >= getParam(condition, 'min');
+    case 'ma20SlopeUp':
+      return hasValue(metrics.ma20SlopePct) && metrics.ma20SlopePct >= getParam(condition, 'min');
+    case 'ma60SlopeUp':
+      return hasValue(metrics.ma60SlopePct) && metrics.ma60SlopePct >= getParam(condition, 'min');
+    case 'upperShadowMax':
+      return hasValue(metrics.todayUpperShadowRatio) && metrics.todayUpperShadowRatio <= getParam(condition, 'max');
+    case 'lowerShadowMin':
+      return hasValue(metrics.todayLowerShadowRatio) && metrics.todayLowerShadowRatio >= getParam(condition, 'min');
     default:
       return true;
   }
@@ -1007,6 +1211,19 @@ function formatTradeDateChina(value) {
     month: '2-digit',
     day: '2-digit'
   }).format(new Date(value));
+}
+
+function fillLocalCacheDateRange(payload, tradingDates = []) {
+  const cache = payload?.localCache;
+  if (!cache || cache.earliestTradeDate) return payload;
+  const latestTradeDate = cache.latestTradeDate ?? isoToTradeDate(cache.latestTradeDateChina);
+  const latestIndex = tradingDates.indexOf(latestTradeDate);
+  if (latestIndex >= 0 && cache.historyDays) {
+    const earliestTradeDate = tradingDates[Math.max(0, latestIndex - cache.historyDays + 1)];
+    cache.earliestTradeDate = earliestTradeDate;
+    cache.earliestTradeDateChina = formatTradeDateChina(earliestTradeDate);
+  }
+  return payload;
 }
 
 async function buildFullMarketRows(stockBasics, tradingDates, activeConditions) {
@@ -1109,6 +1326,8 @@ async function buildFullMarketRows(stockBasics, tradingDates, activeConditions) 
     incompleteRows,
     localCache: {
       historyDays: recentDates.length,
+      earliestTradeDate: populatedDailyDates.at(0) ?? recentDates.at(0),
+      earliestTradeDateChina: formatTradeDateChina(populatedDailyDates.at(0) ?? recentDates.at(0)),
       calendarLatestTradeDate: recentDates.at(-1),
       calendarLatestTradeDateChina: formatTradeDateChina(recentDates.at(-1)),
       latestTradeDate: latestDataDate,
@@ -1209,6 +1428,8 @@ async function loadSnapshotIntoCache() {
     await ensureCacheDirs();
     const snapshot = await readSnapshot();
     if (snapshot?.rows && Array.isArray(snapshot.rows)) {
+      const tradingDates = await getTradingDates();
+      fillLocalCacheDateRange(snapshot, tradingDates);
       datasetCache = {
         ...snapshot,
         snapshotLoaded: true,

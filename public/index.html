@@ -43,7 +43,7 @@
 
         <section class="overview-grid" aria-live="polite">
           <div class="metric primary-metric">
-            <span>股票数据更新至（交易日）</span>
+            <span>股票数据日期范围</span>
             <strong id="stockDataDate">等待数据</strong>
           </div>
           <div class="metric">
@@ -60,14 +60,10 @@
           </div>
         </section>
 
-        <section class="status-board panel-block" aria-live="polite">
+        <section class="status-board panel-block compact-status" aria-live="polite">
           <div>
             <span>数据状态</span>
             <strong id="dataStatusText">等待数据</strong>
-          </div>
-          <div>
-            <span>全市场状态</span>
-            <strong id="universeStatus">等待数据</strong>
           </div>
           <div>
             <span>本地历史缓存</span>
@@ -78,38 +74,20 @@
             <strong id="browserCacheStatus">等待写入</strong>
           </div>
           <div>
-            <span>下次增量检查</span>
-            <strong id="expiresAt">-</strong>
-          </div>
-          <div>
             <span>筛选条件</span>
             <strong id="activeConditionCount">-</strong>
           </div>
-          <div>
-            <span>Tushare Token</span>
-            <strong id="apiKeyStatus">检测中</strong>
-          </div>
-          <div>
-            <span>服务端快照状态</span>
-            <strong id="serverSnapshotStatus">等待数据</strong>
-          </div>
-          <div>
-            <span>浏览器快照状态</span>
-            <strong id="browserSnapshotStatus">等待写入</strong>
-          </div>
-          <div>
-            <span>浏览器保存版本</span>
-            <strong id="browserSnapshotCount">0</strong>
-          </div>
-          <div>
-            <span>交易日规则</span>
-            <strong>自动跳过周末和节假日</strong>
-          </div>
-          <div>
-            <span>数据源说明</span>
-            <strong id="sourceText">-</strong>
-          </div>
         </section>
+
+        <div class="visually-hidden" aria-hidden="true">
+          <span id="expiresAt">-</span>
+          <span id="universeStatus">等待数据</span>
+          <span id="apiKeyStatus">检测中</span>
+          <span id="serverSnapshotStatus">等待数据</span>
+          <span id="browserSnapshotStatus">等待写入</span>
+          <span id="browserSnapshotCount">0</span>
+          <span id="sourceText">-</span>
+        </div>
 
         <section class="rule-panel panel-block" id="conditions">
           <div class="section-heading">
