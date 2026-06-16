@@ -22,8 +22,9 @@ const resultsBody = document.querySelector('#resultsBody');
 const nearMissBody = document.querySelector('#nearMissBody');
 const incompleteBody = document.querySelector('#incompleteBody');
 const conditionList = document.querySelector('#conditionList');
-const stockDetailSection = document.querySelector('#stockDetailSection');
+const stockDetailPanel = document.querySelector('#stockDetailPanel');
 const stockDetailTitle = document.querySelector('#stockDetailTitle');
+const stockDetailMeta = document.querySelector('#stockDetailMeta');
 const stockDetailBody = document.querySelector('#stockDetailBody');
 const chinaClock = document.querySelector('#chinaClock');
 const basicDataNote = document.querySelector('#basicDataNote');
@@ -37,6 +38,7 @@ const klineMeta = document.querySelector('#klineMeta');
 const klineCanvas = document.querySelector('#klineCanvas');
 const klineStats = document.querySelector('#klineStats');
 const closeKlineButton = document.querySelector('#closeKlineButton');
+const closeStockDetailButton = document.querySelector('#closeStockDetailButton');
 const watchlistBody = document.querySelector('#watchlistBody');
 const watchlistNote = document.querySelector('#watchlistNote');
 
@@ -694,20 +696,26 @@ function removeFromWatchlist(tsCode) {
 }
 
 async function showStockDetail(tsCode) {
-  stockDetailSection.hidden = false;
+  stockDetailPanel.hidden = false;
   stockDetailTitle.textContent = `${tsCode} 计算明细加载中...`;
+  stockDetailMeta.textContent = '正在读取交易日、日线、资金流和公式明细';
   stockDetailBody.innerHTML = '<div class="detail-loading">正在读取交易日、日线、资金流和公式明细...</div>';
   try {
     const response = await fetch(`/api/stock/${encodeURIComponent(tsCode)}/detail`);
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.message || '明细加载失败');
     stockDetailTitle.textContent = `${payload.stock.name} ${payload.stock.ts_code}`;
+    stockDetailMeta.textContent = `数据更新至 ${payload.tradeDates?.latestTradeDateChina ?? '-'}`;
     stockDetailBody.innerHTML = renderDetailHtml(payload);
-    stockDetailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
     stockDetailTitle.textContent = `${tsCode} 明细加载失败`;
+    stockDetailMeta.textContent = '读取失败';
     stockDetailBody.innerHTML = `<div class="detail-loading danger">${escapeHtml(error.message)}</div>`;
   }
+}
+
+function closeStockDetail() {
+  stockDetailPanel.hidden = true;
 }
 
 function renderIncomplete(rows) {
@@ -1040,6 +1048,7 @@ basicSearchInput.addEventListener('input', renderBasicRows);
 basicLimitSelect.addEventListener('change', renderBasicRows);
 loadBasicDataButton.addEventListener('click', loadBasicData);
 closeKlineButton.addEventListener('click', closeKline);
+closeStockDetailButton.addEventListener('click', closeStockDetail);
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-stock-detail]');
   if (button) showStockDetail(button.dataset.stockDetail);
@@ -1050,11 +1059,23 @@ document.addEventListener('click', (event) => {
   const removeWatch = event.target.closest('[data-watch-remove]');
   if (removeWatch) removeFromWatchlist(removeWatch.dataset.watchRemove);
   if (event.target === klinePanel) closeKline();
+  if (event.target === stockDetailPanel) closeStockDetail();
 });
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !klinePanel.hidden) {
     closeKline();
   }
+  if (event.key === 'Escape' && !stockDetailPanel.hidden) {
+    closeStockDetail();
+  }
+});
+
+document.querySelector('a[href="#stockDetailSection"]')?.addEventListener('click', (event) => {
+  event.preventDefault();
+  stockDetailPanel.hidden = false;
+  stockDetailTitle.textContent = '股票计算明细';
+  stockDetailMeta.textContent = '请先在命中结果或接近命中里点击“明细”';
+  stockDetailBody.innerHTML = '<div class="detail-loading">选择一只股票后，这里会显示关键指标、原始数据和公式解释。</div>';
 });
 
 document.querySelectorAll('.toc-link').forEach((link) => {

@@ -518,6 +518,14 @@ select {
   background: linear-gradient(180deg, rgba(12, 18, 32, 0.98), rgba(7, 11, 20, 0.98));
 }
 
+.detail-modal {
+  width: min(980px, 100%);
+  max-height: min(88vh, 780px);
+  overflow: auto;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(12, 18, 32, 0.98), rgba(7, 11, 20, 0.98));
+}
+
 .modal-actions {
   display: flex;
   align-items: center;
